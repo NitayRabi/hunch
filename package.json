@@ -1,0 +1,23 @@
+{
+  "name": "jev-researcher",
+  "version": "1.0.0",
+  "description": "Fast tree-traversal repo context gatherer powered by TypeSafe Jev System One",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "jev-researcher": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/index.ts",
+    "traverse": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@typesafe-ai/sdk": "^0.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.3",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}
