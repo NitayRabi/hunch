@@ -91,6 +91,11 @@ function parseArgs(args: string[]): {
   
 async function main() {
   const args = process.argv.slice(2);
+  if (args.includes("--hook")) {
+    const { runHook } = await import("./hook.js");
+    await runHook();
+    return;
+  }
   const { task, dir, json, verbose, codex, maxFiles, maxRounds } = parseArgs(args);
 
   const client = createClient();
