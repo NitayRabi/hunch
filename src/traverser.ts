@@ -59,6 +59,8 @@ export async function traverseRepository(
     nextAction: "continue_missing_impl",
   };
 
+  config.onEvent?.({ type: "start", task: config.task, rootDir: config.rootDir });
+
   if (config.verbose) {
     console.log(`[Traverser] Starting traversal from: ${config.rootDir}`);
     console.log(`[Traverser] Task: "${config.task}"`);
@@ -84,6 +86,14 @@ export async function traverseRepository(
     for (const dirNode of dirsToExplore) {
       if (dirNode.depth >= config.maxDepth) continue;
 
+      config.onEvent?.({
+        type: "dir_exploring",
+        dir: dirNode.dir,
+        depth: dirNode.depth,
+        score: dirNode.score,
+        round: round + 1,
+      });
+
       if (config.verbose) {
         console.log(`  -> Exploring directory: "${dirNode.dir || "."}" (depth: ${dirNode.depth}, score: ${dirNode.score.toFixed(2)})`);
       }
@@ -99,6 +109,8 @@ export async function traverseRepository(
       );
       totalApiRequests++;
 
+      const highRelevanceEntries: EntryEvaluation[] = [];
+
       for (const item of evaluations) {
         if (config.verbose && item.relevance >= 0.4) {
           console.log(`     - [p=${item.relevance.toFixed(2)}] ${item.relativePath}${item.isDirectory ? "/" : ""}`);
@@ -106,6 +118,7 @@ export async function traverseRepository(
 
         if (item.isDirectory) {
           if (item.relevance >= config.dirThreshold) {
+            highRelevanceEntries.push(item);
             const nextDepth = dirNode.depth + 1;
             const nextLogProbSum = dirNode.logProbSum + Math.log(Math.max(item.relevance, 0.01));
             const geometricMeanScore = Math.exp(nextLogProbSum / nextDepth);
@@ -123,6 +136,7 @@ export async function traverseRepository(
           const threshold = isCode ? config.fileThreshold : Math.max(config.fileThreshold, 0.65);
 
           if (item.relevance >= threshold && !inspectedFiles.has(item.relativePath)) {
+            highRelevanceEntries.push(item);
             // Boost code files slightly in the priority ranking
             const priority = isCode ? item.relevance + 0.1 : item.relevance;
             fileCandidates.push({
@@ -134,6 +148,13 @@ export async function traverseRepository(
           }
         }
       }
+
+      config.onEvent?.({
+        type: "entries_evaluated",
+        dir: dirNode.dir,
+        totalEntries: children.length,
+        highRelevanceEntries,
+      });
     }
 
     // 2. Inspect top candidate files
@@ -152,6 +173,12 @@ export async function traverseRepository(
     }
 
     for (const fileNode of filesToInspect) {
+      config.onEvent?.({
+        type: "file_inspecting",
+        relativePath: fileNode.relativePath,
+        priority: fileNode.priority,
+      });
+
       if (config.verbose) {
         console.log(`  -> Reading file content: "${fileNode.relativePath}"`);
       }
@@ -168,6 +195,19 @@ export async function traverseRepository(
       );
       totalApiRequests++;
 
+      const linesCount = fileContext.snippets.reduce(
+        (acc, s) => acc + (s.endLine - s.startLine + 1),
+        0
+      );
+
+      config.onEvent?.({
+        type: "file_inspected",
+        relativePath: fileContext.relativePath,
+        relevance: fileContext.relevance,
+        role: fileContext.role,
+        linesCount,
+      });
+
       if (config.verbose) {
         console.log(`     Role: ${fileContext.role.toUpperCase()} (rel=${fileContext.relevance.toFixed(2)}, conf=${fileContext.confidence.toFixed(2)}), snippets: ${fileContext.snippets.length}`);
       }
@@ -179,6 +219,12 @@ export async function traverseRepository(
 
     // 3. Sufficiency check if we have gathered files
     if (gatheredContextMap.size > 0) {
+      config.onEvent?.({
+        type: "sufficiency_checking",
+        round: round + 1,
+        maxRounds: config.maxRounds,
+      });
+
       const currentContext = Array.from(gatheredContextMap.values());
       lastSufficiency = await evaluateContextSufficiency(
         client,
@@ -186,6 +232,14 @@ export async function traverseRepository(
         currentContext
       );
       totalApiRequests++;
+
+      config.onEvent?.({
+        type: "sufficiency_result",
+        isSufficient: lastSufficiency.isSufficient,
+        pSufficient: lastSufficiency.sufficiencyProbability,
+        action: lastSufficiency.nextAction,
+        readiness: `${lastSufficiency.readinessScore.toFixed(1)}/3.0 (${lastSufficiency.readinessLegend})`,
+      });
 
       if (config.verbose) {
         console.log(`  -> Sufficiency Check: p=${lastSufficiency.sufficiencyProbability.toFixed(2)}, score=${lastSufficiency.readinessScore.toFixed(1)} (${lastSufficiency.readinessLegend}), action=${lastSufficiency.nextAction}`);
@@ -219,6 +273,22 @@ export async function traverseRepository(
   });
 
   const durationMs = Date.now() - startTime;
+  const targetFilesCount = sortedContext.filter((c) => c.role === "modify").length;
+  const referenceFilesCount = sortedContext.filter((c) => c.role === "reference").length;
+  const totalLinesGathered = sortedContext.reduce(
+    (acc, f) => acc + f.snippets.reduce((sAcc, s) => sAcc + (s.endLine - s.startLine + 1), 0),
+    0
+  );
+
+  config.onEvent?.({
+    type: "finished",
+    durationMs,
+    totalCalls: totalApiRequests,
+    dirsTraversed: visitedDirs.size,
+    targetFilesCount,
+    referenceFilesCount,
+    totalLinesGathered,
+  });
 
   return {
     task: config.task,

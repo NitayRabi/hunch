@@ -12,10 +12,17 @@ export interface CodexRunResult {
   exitCode: number;
 }
 
+export type CodexStreamEvent =
+  | { type: "message"; text: string }
+  | { type: "tool_call"; index: number; command: string }
+  | { type: "turn_completed"; inputTokens: number; outputTokens: number };
+
 export interface CodexOptions {
   profile?: string;
   disableShell?: boolean;
   timeoutMs?: number;
+  onEvent?: (event: CodexStreamEvent) => void;
+  onChunk?: (text: string) => void;
 }
 
 export function runCodex(
@@ -23,7 +30,7 @@ export function runCodex(
   targetDir: string,
   options: CodexOptions = {}
 ): Promise<CodexRunResult> {
-  const { profile = "local", disableShell = false, timeoutMs = 600000 } = options;
+  const { profile = "local", disableShell = false, timeoutMs = 600000, onEvent, onChunk } = options;
 
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
@@ -75,17 +82,35 @@ export function runCodex(
             const item = event.item;
             if (item?.type === "agent_message" && item.text) {
               finalMessage += item.text;
-              console.log(`     [Codex Message] ${item.text.slice(0, 140).replace(/\n/g, " ")}...`);
+              if (onChunk) {
+                onChunk(item.text);
+              } else if (onEvent) {
+                onEvent({ type: "message", text: item.text });
+              } else {
+                console.log(`     [Codex Message] ${item.text.slice(0, 140).replace(/\n/g, " ")}...`);
+              }
             } else if (item?.type === "command_execution" || item?.type === "tool_call") {
               toolCallsCount++;
               const cmd = item.command || item.name || "tool_call";
               toolCalls.push(cmd);
-              console.log(`     [Codex Tool Call #${toolCallsCount}] ${cmd.slice(0, 100)}`);
+              if (onEvent) {
+                onEvent({ type: "tool_call", index: toolCallsCount, command: cmd });
+              } else {
+                console.log(`     [Codex Tool Call #${toolCallsCount}] ${cmd.slice(0, 100)}`);
+              }
             }
           } else if (event.type === "turn.completed" && event.usage) {
             inputTokens += event.usage.input_tokens || 0;
             outputTokens += event.usage.output_tokens || 0;
-            console.log(`     [Codex Turn Finished] Turn tokens: in=${event.usage.input_tokens}, out=${event.usage.output_tokens}`);
+            if (onEvent) {
+              onEvent({
+                type: "turn_completed",
+                inputTokens: event.usage.input_tokens || 0,
+                outputTokens: event.usage.output_tokens || 0,
+              });
+            } else {
+              console.log(`     [Codex Turn Finished] Turn tokens: in=${event.usage.input_tokens}, out=${event.usage.output_tokens}`);
+            }
           }
         } catch {
           // Non-JSON line or partial line, ignore

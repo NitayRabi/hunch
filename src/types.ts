@@ -37,6 +37,24 @@ export interface SufficiencyEvaluation {
   reasoning?: string;
 }
 
+export type JevTraversalEvent =
+  | { type: "start"; task: string; rootDir: string }
+  | { type: "dir_exploring"; dir: string; depth: number; score: number; round: number }
+  | { type: "entries_evaluated"; dir: string; totalEntries: number; highRelevanceEntries: EntryEvaluation[] }
+  | { type: "file_inspecting"; relativePath: string; priority: number }
+  | { type: "file_inspected"; relativePath: string; relevance: number; role: string; linesCount: number }
+  | { type: "sufficiency_checking"; round: number; maxRounds: number }
+  | { type: "sufficiency_result"; isSufficient: boolean; pSufficient: number; action: string; readiness: string }
+  | {
+      type: "finished";
+      durationMs: number;
+      totalCalls: number;
+      dirsTraversed: number;
+      targetFilesCount: number;
+      referenceFilesCount: number;
+      totalLinesGathered: number;
+    };
+
 export interface TraversalConfig {
   rootDir: string;
   task: string;
@@ -47,6 +65,7 @@ export interface TraversalConfig {
   maxDepth: number; // max directory depth (default: 6)
   maxRounds: number; // max exploration waves (default: 8)
   verbose?: boolean;
+  onEvent?: (event: JevTraversalEvent) => void;
 }
 
 export interface TraversalResult {
