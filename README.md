@@ -1,21 +1,15 @@
 # Hunch ⚡
 
-Fast, zero-string-search repository context gatherer powered by **System One Decision Primitives** (TypeSafe Hunch & OpenJEV).
+Fast, zero-string-search repository context gatherer powered by **System One Decision Primitives** ([TypeSafe JEV](https://typesafe.ai) & [OpenJEV](https://github.com/TheoLeeCJ/openjev)).
 
 Given a codebase and a task prompt, `hunch` navigates directory hierarchies using speculative parallel classification, inspects candidate file chunks, extracts verified line snippets, and determines whether gathered context is sufficient for an autonomous coding agent to implement the solution.
 
 ---
 
-## Key Features
-
-1. **Pure System One Navigation**: Traverses repos via parallel logit & categorical probability distributions.
-2. **Dual Usage Modes**:
-   - **Standalone CLI**: Run `hunch "<task>"` directly in any terminal.
-   - **Agent Plugin**: Plug into Claude Code, Codex, or custom harnesses to automatically pre-gather context on every prompt.
-3. **Dual Engine Backends**:
-   - **Default (Cloud)**: TypeSafe Cloud System One API.
-   - **Local Engine (OpenJEV)**: Activated via `--local` / `--local-url <url>` or `OPENJEV_URL`. Works with standard OpenAI-compatible local endpoints (`llama-server`, `vLLM`, `Ollama`, `llama-swap`).
-4. **Context Sufficiency Early-Stopping**: Calculates dynamic readiness scores ($p_{\text{sufficient}}$) to stop traversal immediately once target files and references are verified.
+- 💻 [Run Standalone](#1-standalone-cli)
+- 🔌 [Configure as Coding Plugin](#2-hunch-plugin-for-coding-agents)
+- ⚙️ [Configuration & Environment Variables](#3-configuration--environment-variables)
+- 📊 [Benchmarks & Reports](#4-benchmark-highlights)
 
 ---
 
@@ -56,7 +50,7 @@ hunch "Fix edge case in date parsing for leap years" --codex
 | `--dir, -d <path>` | Target repository path | Current working directory |
 | `--verbose, -v` | Stream live traversal steps and probabilities | `false` |
 | `--json` | Output machine-readable JSON context package | `false` |
-| `--local-url <url>` | Use local System One engine at specified URL | `undefined` (uses Cloud Hunch) |
+| `--local-url <url>` | Use local System One engine at specified URL | `undefined` (uses Cloud JEV) |
 | `--local, --openjev` | Use local System One engine at `http://127.0.0.1:8080/v1` | `false` |
 | `--model, -m <model>` | Local inference model name | `gemma-4-E4B_q4_0-it` |
 | `--hunch, --cloud` | Explicitly force TypeSafe Cloud System One engine | Default |
@@ -110,8 +104,8 @@ Or reference this repository directory directly in your agent configuration.
 
 | Variable | Description | Default |
 |---|---|---|
-| `HUNCH_API_KEY`, `TYPESAFE_API_KEY` | API Key for TypeSafe Cloud System One | Configured default |
-| `HUNCH_LOCAL_URL`, `OPENJEV_URL`, `LOCAL_URL` | Local OpenAI-compatible server endpoint | `undefined` |
+| `HUNCH_API_KEY`, `TYPESAFE_API_KEY` | API Key for [TypeSafe JEV Cloud System One](https://typesafe.ai) | Configured default |
+| `HUNCH_LOCAL_URL`, `OPENJEV_URL`, `LOCAL_URL` | Local OpenAI-compatible server endpoint ([OpenJEV](https://github.com/TheoLeeCJ/openjev)) | `undefined` |
 | `HUNCH_MODEL`, `OPENJEV_MODEL` | Local inference model name | `gemma-4-E4B_q4_0-it` |
 | `HUNCH_ENGINE` | Explicitly choose engine (`hunch` or `openjev`) | `hunch` |
 

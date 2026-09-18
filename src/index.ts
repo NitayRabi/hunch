@@ -73,11 +73,11 @@ function parseArgs(args: string[]): {
     npx hunch "<task description>" [options]
     npx tsx src/index.ts "<task description>" [options]
   
-  Engine Options (Default: TypeSafe Hunch Cloud API):
+  Engine Options (Default: TypeSafe JEV Cloud API):
     --local-url <url>       Use local System One engine at specified URL (e.g. http://127.0.0.1:8080/v1)
     --local                 Use local System One engine at default endpoint (http://127.0.0.1:8080/v1)
     --model, -m <model>     Target model name for local inference (default: gemma-4-E4B_q4_0-it)
-    --hunch                 Explicitly use TypeSafe Hunch cloud API
+    --hunch, --jev          Explicitly use TypeSafe JEV cloud API
 
   Options:
     --dir, -d <path>        Target repository directory (default: current directory)
@@ -91,7 +91,7 @@ function parseArgs(args: string[]): {
   Environment Variables:
     HUNCH_LOCAL_URL, OPENJEV_URL, LOCAL_URL   Set local server endpoint (activates local engine)
     HUNCH_MODEL, OPENJEV_MODEL               Set default model name for local inference
-    HUNCH_API_KEY, TYPESAFE_API_KEY          API Key for default cloud Hunch
+    HUNCH_API_KEY, TYPESAFE_API_KEY          API Key for default TypeSafe JEV cloud API
   `);
         process.exit(0);
       } else if (!arg.startsWith("-")) {

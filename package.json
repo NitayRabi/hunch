@@ -1,7 +1,7 @@
 {
   "name": "hunch",
   "version": "1.0.0",
-  "description": "Fast tree-traversal repo context gatherer powered by TypeSafe Hunch & OpenJEV System One",
+  "description": "Fast tree-traversal repo context gatherer powered by TypeSafe JEV & OpenJEV System One",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
