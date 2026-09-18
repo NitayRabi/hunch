@@ -6,10 +6,91 @@ import {
   CodeSnippet,
   SufficiencyEvaluation,
   SystemOneClient,
+  PromptClassification,
+  PromptIntent,
 } from "./types.js";
 import { FileChunk } from "./fs-utils.js";
 
 const BATCH_SIZE = 30;
+
+/**
+ * Fast System One classifier that evaluates whether an incoming user message warrants
+ * searching and traversing the local repository codebase.
+ *
+ * Categories:
+ * - coding_task: Actionable code editing / bug fixing / feature building -> Search
+ * - codebase_research: Research questions investigating local codebase structure / logic -> Search
+ * - conversation: Normal conversational messages / greetings / clarifications -> No Search
+ * - general_question: General knowledge / external web search requests -> No Search
+ */
+export async function classifyPromptIntent(
+  client: SystemOneClient,
+  prompt: string
+): Promise<PromptClassification> {
+  const state = {
+    user_message: prompt,
+  };
+
+  try {
+    const response = await client.systemOne({
+      state: JSON.stringify(state),
+      questions: {
+        intent: choice(
+          `Classify the primary intent and purpose of the user's message: '${prompt}'`,
+          {
+            coding_task: "Actionable coding task, bug fix, feature request, refactoring, or file modification in the codebase",
+            codebase_research: "Question or research task specifically analyzing the local repository, codebase architecture, files, or logic",
+            conversation: "Normal conversation, greeting, chit-chat, clarification, or discussion not requiring repository inspection",
+            general_question: "General question, external web search query (e.g. 'check the web', 'search online'), or knowledge question not related to this local codebase",
+          }
+        ),
+        should_search: noul(
+          `Does fulfilling or answering this user prompt warrant searching and inspecting files in the local repository codebase: '${prompt}'?`
+        ),
+      },
+    });
+
+    const intent = (response.answers.intent?.choice as PromptIntent) || "coding_task";
+    const confidence = response.answers.intent?.confidence ?? 0.5;
+    const searchProbability = response.answers.should_search?.noul ?? 0.5;
+
+    // A prompt warrants local codebase search if it is a coding task or codebase research question
+    // and is not purely conversational or an external/web question.
+    const shouldSearch =
+      (intent === "coding_task" || intent === "codebase_research") &&
+      searchProbability >= 0.35;
+
+    return {
+      intent,
+      shouldSearch,
+      confidence,
+      searchProbability,
+    };
+  } catch (err) {
+    // Robust heuristic fallback if API call fails
+    const lower = prompt.toLowerCase();
+    const isWebSearch =
+      lower.includes("search the web") ||
+      lower.includes("check the web") ||
+      lower.includes("search online") ||
+      lower.includes("look up online") ||
+      lower.includes("google ");
+    const isGreeting =
+      /^(hi|hello|hey|thanks|thank you|good morning|good afternoon|ok|okay|bye)\b/i.test(prompt.trim());
+    const shouldSearch = !isWebSearch && !isGreeting && prompt.length >= 15;
+
+    return {
+      intent: isWebSearch
+        ? "general_question"
+        : isGreeting
+        ? "conversation"
+        : "coding_task",
+      shouldSearch,
+      confidence: 0.5,
+      searchProbability: shouldSearch ? 0.7 : 0.2,
+    };
+  }
+}
 
 /**
  * Evaluates direct child entries of a directory in parallel speculative batches.

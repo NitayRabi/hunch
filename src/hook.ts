@@ -2,12 +2,14 @@
 import * as readline from "node:readline";
 import { createClient } from "./client.js";
 import { traverseRepository } from "./traverser.js";
+import { classifyPromptIntent } from "./evaluator.js";
 import { formatResultMarkdown } from "./formatter.js";
 import { TraversalConfig } from "./types.js";
 
 /**
  * Hook mode: Reads a JSON payload from stdin (e.g. from Claude Code / Codex UserPromptSubmit hook),
- * runs speculative Hunch context traversal against the workspace, and outputs additionalContext.
+ * classifies the prompt with JEV/OpenJEV System One to see if repo search is warranted,
+ * and if so, runs speculative Hunch context traversal against the workspace, returning additionalContext.
  */
 export async function runHook() {
   const rl = readline.createInterface({
@@ -32,14 +34,23 @@ export async function runHook() {
       process.exit(0);
     }
 
-    // Skip short prompts / greetings
-    if (prompt.length < 15 || prompt.split(" ").length < 3) {
+    // Skip trivially short prompts
+    if (prompt.trim().length < 4) {
+      process.exit(0);
+    }
+
+    const { client, engine } = createClient();
+
+    // 1. Eager Hook Classification: Check whether the message warrants a repository search
+    const classification = await classifyPromptIntent(client, prompt);
+
+    // If normal conversation, clarification, general question, or web search - skip traversal
+    if (!classification.shouldSearch) {
       process.exit(0);
     }
 
     const cwd = event.cwd || (Array.isArray(event.workspacePaths) && event.workspacePaths[0]) || process.cwd();
 
-    const { client, engine } = createClient();
     const config: TraversalConfig = {
       rootDir: cwd,
       task: prompt,

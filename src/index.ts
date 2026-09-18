@@ -11,6 +11,13 @@ import {
   c,
 } from "./ui.js";
 
+export { classifyPromptIntent, evaluateDirectoryEntries, evaluateFileContent, evaluateContextSufficiency } from "./evaluator.js";
+export { createClient, resolveEngine } from "./client.js";
+export { traverseRepository } from "./traverser.js";
+export { formatResultMarkdown, formatResultJson } from "./formatter.js";
+export { runHook } from "./hook.js";
+export * from "./types.js";
+
 function parseArgs(args: string[]): {
     task: string;
     dir: string;
@@ -195,4 +202,6 @@ async function main() {
   }
 }
 
-main();
+if (process.argv[1] && (process.argv[1].endsWith("index.ts") || process.argv[1].endsWith("index.js") || process.argv[1].endsWith("hunch"))) {
+  main();
+}

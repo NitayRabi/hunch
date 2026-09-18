@@ -7,6 +7,20 @@ export interface SystemOneClient {
   ): Promise<any>;
 }
 
+export type PromptIntent =
+  | "coding_task"
+  | "codebase_research"
+  | "conversation"
+  | "general_question";
+
+export interface PromptClassification {
+  intent: PromptIntent;
+  shouldSearch: boolean;
+  confidence: number;
+  searchProbability: number;
+  reason?: string;
+}
+
 export interface DirectoryChild {
   name: string;
   relativePath: string;
