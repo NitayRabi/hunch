@@ -137,8 +137,6 @@ See detailed reports:
 ## 5. Roadmap
 
 - [ ] **Full SWE-bench Lite Benchmark**: Run full evaluation across the complete 300-task SWE-bench Lite dataset.
-- [ ] **Adaptive Traversal Heuristics**: Dynamically tune depth and file chunk inspection based on repository size.
-- [ ] **Multi-Repo Federation**: Support fast context gathering across microservice repositories and mono-repos.
 
 ---
 
