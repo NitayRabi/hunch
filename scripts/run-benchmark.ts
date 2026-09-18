@@ -28,14 +28,15 @@ async function benchmarkTask(task: string, repoDir: string): Promise<{
   console.log(`\n=============================================================`);
   console.log(`BENCHMARKING TASK: "${task}"`);
   console.log(`TARGET REPO: ${repoDir}`);
-  console.log(`=============================================================\n`);
+  console.log(`=============================================================\\n`);
 
   // --- 1. JEV + Codex ---
   console.log(`[1/2] Running JEV Researcher + Guided Codex...`);
-  const client = createClient();
+  const { client, engine } = createClient();
   const config: TraversalConfig = {
     rootDir: repoDir,
     task,
+    engine,
     dirThreshold: 0.40,
     fileThreshold: 0.45,
     snippetThreshold: 0.45,

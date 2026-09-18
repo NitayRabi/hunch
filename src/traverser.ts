@@ -1,10 +1,10 @@
-import { TypeSafeClient } from "@typesafe-ai/sdk";
 import {
   TraversalConfig,
   TraversalResult,
   GatheredFileContext,
   SufficiencyEvaluation,
   EntryEvaluation,
+  SystemOneClient,
 } from "./types.js";
 import { readDirectoryChildren, readFileWithChunks } from "./fs-utils.js";
 import {
@@ -36,7 +36,7 @@ function isSourceCodeFile(filePath: string): boolean {
 }
 
 export async function traverseRepository(
-  client: TypeSafeClient,
+  client: SystemOneClient,
   config: TraversalConfig
 ): Promise<TraversalResult> {
   const startTime = Date.now();
@@ -59,9 +59,15 @@ export async function traverseRepository(
     nextAction: "continue_missing_impl",
   };
 
-  config.onEvent?.({ type: "start", task: config.task, rootDir: config.rootDir });
+  config.onEvent?.({
+    type: "start",
+    task: config.task,
+    rootDir: config.rootDir,
+    engine: config.engine,
+  });
 
   if (config.verbose) {
+    console.log(`[Traverser] Engine: ${config.engine?.toUpperCase() || "JEV"}`);
     console.log(`[Traverser] Starting traversal from: ${config.rootDir}`);
     console.log(`[Traverser] Task: "${config.task}"`);
   }
@@ -119,26 +125,21 @@ export async function traverseRepository(
         if (item.isDirectory) {
           if (item.relevance >= config.dirThreshold) {
             highRelevanceEntries.push(item);
-            const nextDepth = dirNode.depth + 1;
-            const nextLogProbSum = dirNode.logProbSum + Math.log(Math.max(item.relevance, 0.01));
-            const geometricMeanScore = Math.exp(nextLogProbSum / nextDepth);
-
+            // Compute decay-adjusted branch score
+            const branchScore = item.relevance * Math.pow(0.92, dirNode.depth + 1);
             dirFrontier.push({
               dir: item.relativePath,
-              depth: nextDepth,
-              logProbSum: nextLogProbSum,
-              score: geometricMeanScore,
+              depth: dirNode.depth + 1,
+              logProbSum: dirNode.logProbSum + Math.log(Math.max(item.relevance, 0.05)),
+              score: branchScore,
             });
           }
         } else {
-          const isCode = isSourceCodeFile(item.relativePath);
-          // Only accept docs/config files if relevance is especially high
-          const threshold = isCode ? config.fileThreshold : Math.max(config.fileThreshold, 0.65);
-
-          if (item.relevance >= threshold && !inspectedFiles.has(item.relativePath)) {
+          // File evaluation
+          if (item.relevance >= config.fileThreshold) {
             highRelevanceEntries.push(item);
-            // Boost code files slightly in the priority ranking
-            const priority = isCode ? item.relevance + 0.1 : item.relevance;
+            const isCode = isSourceCodeFile(item.relativePath);
+            const priority = item.relevance * (isCode ? 1.25 : 0.8);
             fileCandidates.push({
               relativePath: item.relativePath,
               relevance: item.relevance,
@@ -288,11 +289,13 @@ export async function traverseRepository(
     targetFilesCount,
     referenceFilesCount,
     totalLinesGathered,
+    engine: config.engine,
   });
 
   return {
     task: config.task,
     rootDir: config.rootDir,
+    engine: config.engine,
     durationMs,
     totalApiRequests,
     directoriesVisited: Array.from(visitedDirs),

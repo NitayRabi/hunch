@@ -1,3 +1,12 @@
+export type EngineType = "jev" | "openjev";
+
+export interface SystemOneClient {
+  systemOne(
+    request: any,
+    options?: any
+  ): Promise<any>;
+}
+
 export interface DirectoryChild {
   name: string;
   relativePath: string;
@@ -38,7 +47,7 @@ export interface SufficiencyEvaluation {
 }
 
 export type JevTraversalEvent =
-  | { type: "start"; task: string; rootDir: string }
+  | { type: "start"; task: string; rootDir: string; engine?: EngineType }
   | { type: "dir_exploring"; dir: string; depth: number; score: number; round: number }
   | { type: "entries_evaluated"; dir: string; totalEntries: number; highRelevanceEntries: EntryEvaluation[] }
   | { type: "file_inspecting"; relativePath: string; priority: number }
@@ -53,11 +62,13 @@ export type JevTraversalEvent =
       targetFilesCount: number;
       referenceFilesCount: number;
       totalLinesGathered: number;
+      engine?: EngineType;
     };
 
 export interface TraversalConfig {
   rootDir: string;
   task: string;
+  engine?: EngineType;
   dirThreshold: number; // threshold to explore directory (default: 0.40)
   fileThreshold: number; // threshold to read file content (default: 0.45)
   snippetThreshold: number; // threshold to include snippet (default: 0.45)
@@ -71,6 +82,7 @@ export interface TraversalConfig {
 export interface TraversalResult {
   task: string;
   rootDir: string;
+  engine?: EngineType;
   durationMs: number;
   totalApiRequests: number;
   directoriesVisited: string[];
