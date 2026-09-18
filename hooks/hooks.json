@@ -1,5 +1,5 @@
 {
-  "description": "Pre-gathers codebase context via TypeSafe JEV parallel tree traversal before the agent acts",
+  "description": "Pre-gathers codebase context via Hunch parallel tree traversal before the agent acts",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -9,7 +9,7 @@
             "command": "sh",
             "args": [
               "-c",
-              "node \"$CLAUDE_PLUGIN_ROOT/dist/index.js\" --hook || jev-researcher --hook"
+              "node \"$CLAUDE_PLUGIN_ROOT/dist/index.js\" --hook || hunch --hook"
             ],
             "timeout": 60
           }

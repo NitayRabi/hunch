@@ -8,13 +8,13 @@ export function formatResultMarkdown(result: TraversalResult): string {
 
   const lines: string[] = [];
 
-  lines.push(`# JEV Repo Context Package`);
+  lines.push(`# Hunch Repo Context Package`);
   lines.push(`**Task**: ${task}`);
   lines.push(
     `**Sufficiency**: ${sufficiency.isSufficient ? "SUFFICIENT" : "PARTIAL"} (p=${sufficiency.sufficiencyProbability.toFixed(2)}, readiness: ${sufficiency.readinessLegend} [${sufficiency.readinessScore.toFixed(1)}/3.0])`
   );
   lines.push(
-    `**Traversed**: ${result.directoriesVisited.length} dirs, ${result.filesInspected.length} files inspected, ${totalApiRequests} JEV calls in ${(durationMs / 1000).toFixed(2)}s\n`
+    `**Traversed**: ${result.directoriesVisited.length} dirs, ${result.filesInspected.length} files inspected, ${totalApiRequests} evaluations in ${(durationMs / 1000).toFixed(2)}s\n`
   );
 
   lines.push(`---\n`);

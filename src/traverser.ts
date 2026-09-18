@@ -67,7 +67,8 @@ export async function traverseRepository(
   });
 
   if (config.verbose) {
-    console.log(`[Traverser] Engine: ${config.engine?.toUpperCase() || "JEV"}`);
+    const engineName = config.engine === "openjev" || config.engine === "local" ? "OPENJEV" : "HUNCH";
+    console.log(`[Traverser] Engine: ${engineName}`);
     console.log(`[Traverser] Starting traversal from: ${config.rootDir}`);
     console.log(`[Traverser] Task: "${config.task}"`);
   }

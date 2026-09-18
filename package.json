@@ -1,11 +1,11 @@
 {
-  "name": "jev-researcher",
+  "name": "hunch",
   "version": "1.0.0",
-  "description": "Fast tree-traversal repo context gatherer powered by TypeSafe Jev & OpenJev System One",
+  "description": "Fast tree-traversal repo context gatherer powered by TypeSafe Hunch & OpenJEV System One",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "jev-researcher": "dist/index.js"
+    "hunch": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

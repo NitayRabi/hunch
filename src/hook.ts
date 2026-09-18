@@ -7,7 +7,7 @@ import { TraversalConfig } from "./types.js";
 
 /**
  * Hook mode: Reads a JSON payload from stdin (e.g. from Claude Code / Codex UserPromptSubmit hook),
- * runs speculative JEV context traversal against the workspace, and outputs additionalContext.
+ * runs speculative Hunch context traversal against the workspace, and outputs additionalContext.
  */
 export async function runHook() {
   const rl = readline.createInterface({
@@ -62,7 +62,8 @@ export async function runHook() {
 
     const markdown = formatResultMarkdown(result);
 
-    const additionalContext = `### PRE-GATHERED REPOSITORY CONTEXT (${engine.toUpperCase()} Traversal)\nThe following target files and verified snippets were pre-gathered across the codebase for your task:\n\n${markdown}\n\n**INSTRUCTIONS FOR AGENT**:\nYou are provided with verified file snippets and target files above.\nDO NOT run exploratory repository search commands (avoid find/grep/cat).\nProceed directly to analyzing the provided files and implementing the requested changes.`;
+    const engineName = engine === "openjev" || engine === "local" ? "OPENJEV" : "HUNCH";
+    const additionalContext = `### PRE-GATHERED REPOSITORY CONTEXT (${engineName} Traversal)\nThe following target files and verified snippets were pre-gathered across the codebase for your task:\n\n${markdown}\n\n**INSTRUCTIONS FOR AGENT**:\nYou are provided with verified file snippets and target files above.\nDO NOT run exploratory repository search commands (avoid find/grep/cat).\nProceed directly to analyzing the provided files and implementing the requested changes.`;
 
     // Standard Claude Code / Codex UserPromptSubmit output schema
     const output = {

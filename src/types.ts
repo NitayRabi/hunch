@@ -1,4 +1,4 @@
-export type EngineType = "jev" | "openjev";
+export type EngineType = "hunch" | "jev" | "openjev" | "local";
 
 export interface SystemOneClient {
   systemOne(
@@ -46,7 +46,7 @@ export interface SufficiencyEvaluation {
   reasoning?: string;
 }
 
-export type JevTraversalEvent =
+export type HunchTraversalEvent =
   | { type: "start"; task: string; rootDir: string; engine?: EngineType }
   | { type: "dir_exploring"; dir: string; depth: number; score: number; round: number }
   | { type: "entries_evaluated"; dir: string; totalEntries: number; highRelevanceEntries: EntryEvaluation[] }
@@ -65,6 +65,9 @@ export type JevTraversalEvent =
       engine?: EngineType;
     };
 
+// Backward-compatibility alias
+export type JevTraversalEvent = HunchTraversalEvent;
+
 export interface TraversalConfig {
   rootDir: string;
   task: string;
@@ -76,7 +79,7 @@ export interface TraversalConfig {
   maxDepth: number; // max directory depth (default: 6)
   maxRounds: number; // max exploration waves (default: 8)
   verbose?: boolean;
-  onEvent?: (event: JevTraversalEvent) => void;
+  onEvent?: (event: HunchTraversalEvent) => void;
 }
 
 export interface TraversalResult {

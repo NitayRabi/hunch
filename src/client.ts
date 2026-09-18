@@ -10,6 +10,7 @@ export interface CreateClientOptions {
   apiKey?: string;
   localUrl?: string;
   openjevUrl?: string;
+  hunchUrl?: string;
   model?: string;
   openjevModel?: string;
   timeoutMs?: number;
@@ -17,16 +18,21 @@ export interface CreateClientOptions {
 
 /**
  * Resolves the active System One decision engine.
- * Default is always "jev" (TypeSafe Cloud API).
+ * Default is always "hunch" (TypeSafe Cloud API).
  * If a local URL is provided (via CLI flag or env var) or --local is passed, it switches to "openjev".
  */
 export function resolveEngine(options?: CreateClientOptions): EngineType {
-  if (options?.engine) return options.engine;
+  if (options?.engine) {
+    if (options.engine === "jev") return "hunch";
+    if (options.engine === "local") return "openjev";
+    return options.engine;
+  }
 
   // If a local URL is explicitly passed via options or env vars, switch to local engine
   if (
     options?.localUrl ||
     options?.openjevUrl ||
+    process.env.HUNCH_LOCAL_URL ||
     process.env.OPENJEV_URL ||
     process.env.LOCAL_URL ||
     process.env.OPENJEV_BASE_URL ||
@@ -39,7 +45,7 @@ export function resolveEngine(options?: CreateClientOptions): EngineType {
     return "openjev";
   }
 
-  const envEngine = process.env.JEV_ENGINE?.toLowerCase();
+  const envEngine = (process.env.HUNCH_ENGINE || process.env.JEV_ENGINE)?.toLowerCase();
   if (
     envEngine === "openjev" ||
     envEngine === "open-jev" ||
@@ -48,11 +54,11 @@ export function resolveEngine(options?: CreateClientOptions): EngineType {
     return "openjev";
   }
 
-  return "jev";
+  return "hunch";
 }
 
 /**
- * Factory for creating either JEV (TypeSafe Cloud System One) or OpenJEV (Local OpenAI-compatible logits readout).
+ * Factory for creating either Hunch (TypeSafe Cloud System One) or OpenJEV (Local OpenAI-compatible logits readout).
  * No model weights or binaries are bundled; communication is over standard HTTP.
  */
 export function createClient(
@@ -67,10 +73,12 @@ export function createClient(
 
   const engine = resolveEngine(opts);
 
-  if (engine === "openjev") {
+  if (engine === "openjev" || engine === "local") {
     const baseUrl =
       opts.localUrl ||
       opts.openjevUrl ||
+      opts.hunchUrl ||
+      process.env.HUNCH_LOCAL_URL ||
       process.env.OPENJEV_URL ||
       process.env.LOCAL_URL ||
       process.env.OPENJEV_BASE_URL ||
@@ -80,6 +88,7 @@ export function createClient(
     const model =
       opts.model ||
       opts.openjevModel ||
+      process.env.HUNCH_MODEL ||
       process.env.OPENJEV_MODEL ||
       process.env.LOCAL_MODEL ||
       process.env.LOCAL_LLM_MODEL ||
@@ -93,8 +102,13 @@ export function createClient(
     return { client: openjevClient, engine: "openjev" };
   }
 
-  const key = opts.apiKey || process.env.TYPESAFE_API_KEY || DEFAULT_API_KEY;
-  const jevClient = new TypeSafeClient({
+  const key =
+    opts.apiKey ||
+    process.env.HUNCH_API_KEY ||
+    process.env.TYPESAFE_API_KEY ||
+    DEFAULT_API_KEY;
+
+  const hunchClient = new TypeSafeClient({
     apiKey: key,
     timeout: opts.timeoutMs || 15000,
     retry: {
@@ -104,5 +118,5 @@ export function createClient(
     },
   });
 
-  return { client: jevClient, engine: "jev" };
+  return { client: hunchClient, engine: "hunch" };
 }

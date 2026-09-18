@@ -80,18 +80,18 @@ async function main() {
   const task = "Fix currency exchange rate caching and conversion fallback in fx-service";
 
   console.log(`=============================================================`);
-  console.log(`ENGINE COMPARISON BENCHMARK: TypeSafe JEV vs OpenJEV`);
+  console.log(`ENGINE COMPARISON BENCHMARK: Hunch Cloud vs OpenJEV`);
   console.log(`Repository: ${repoDir}`);
   console.log(`Task: ${task}`);
   console.log(`=============================================================`);
 
-  // 1. Run with JEV (TypeSafe API)
-  const jevResult = await runEngineOnTask("jev", task, repoDir);
+  // 1. Run with Hunch (TypeSafe API)
+  const hunchResult = await runEngineOnTask("hunch", task, repoDir);
 
   // 2. Run with OpenJEV (Local fastcontext logit readout)
   const openjevResult = await runEngineOnTask("openjev", task, repoDir);
 
-  const report = `# Engine Comparison Benchmark: TypeSafe JEV vs OpenJEV
+  const report = `# Engine Comparison Benchmark: Hunch Cloud vs OpenJEV
 
 **Target Repository**: \`portfolio-architect\`  
 **Task**: *${task}*  
@@ -102,35 +102,35 @@ async function main() {
 
 ## 1. Quantitative Performance Comparison
 
-| Metric | TypeSafe JEV (Cloud API) | OpenJEV (Local Logits Readout) | Comparison / Notes |
+| Metric | Hunch (Cloud API) | OpenJEV (Local Logits Readout) | Comparison / Notes |
 |---|---|---|---|
 | **Architecture** | Remote TypeSafe System One API | Local Fastcontext SFT + Direct Logits Readout | Zero network latency vs cloud managed |
-| **Exploration Time** | **${(jevResult.traversalDurationMs / 1000).toFixed(2)}s** | **${(openjevResult.traversalDurationMs / 1000).toFixed(2)}s** | OpenJEV is **${(jevResult.traversalDurationMs / openjevResult.traversalDurationMs).toFixed(1)}x faster** |
-| **System One Requests** | ${jevResult.traversal.totalApiRequests} parallel batches | ${openjevResult.traversal.totalApiRequests} parallel batches | Tree search evaluations |
-| **Directories Explored** | ${jevResult.traversal.directoriesVisited.length} (${jevResult.traversal.directoriesVisited.slice(0, 3).join(", ") || "."}...) | ${openjevResult.traversal.directoriesVisited.length} (${openjevResult.traversal.directoriesVisited.slice(0, 3).join(", ") || "."}...) | Frontier branch expansion |
-| **Files Inspected** | ${jevResult.traversal.filesInspected.length} files | ${openjevResult.traversal.filesInspected.length} files | Candidate files read & chunked |
-| **Target Files Identified** | ${jevResult.targetFiles.join(", ") || "None"} | ${openjevResult.targetFiles.join(", ") || "None"} | Isolated target problem area |
-| **Reference Files** | ${jevResult.referenceFiles.join(", ") || "None"} | ${openjevResult.referenceFiles.join(", ") || "None"} | Contextual dependencies |
-| **Context Snippets** | ${jevResult.totalSnippets} snippets (${jevResult.totalLines} lines) | ${openjevResult.totalSnippets} snippets (${openjevResult.totalLines} lines) | Focused context size |
-| **Context Sufficiency** | p=${jevResult.traversal.sufficiency.sufficiencyProbability.toFixed(2)} (${jevResult.traversal.sufficiency.readinessLegend}) | p=${openjevResult.traversal.sufficiency.sufficiencyProbability.toFixed(2)} (${openjevResult.traversal.sufficiency.readinessLegend}) | Early termination trigger |
+| **Exploration Time** | **${(hunchResult.traversalDurationMs / 1000).toFixed(2)}s** | **${(openjevResult.traversalDurationMs / 1000).toFixed(2)}s** | OpenJEV is **${(hunchResult.traversalDurationMs / openjevResult.traversalDurationMs).toFixed(1)}x faster** |
+| **System One Requests** | ${hunchResult.traversal.totalApiRequests} parallel batches | ${openjevResult.traversal.totalApiRequests} parallel batches | Tree search evaluations |
+| **Directories Explored** | ${hunchResult.traversal.directoriesVisited.length} (${hunchResult.traversal.directoriesVisited.slice(0, 3).join(", ") || "."}...) | ${openjevResult.traversal.directoriesVisited.length} (${openjevResult.traversal.directoriesVisited.slice(0, 3).join(", ") || "."}...) | Frontier branch expansion |
+| **Files Inspected** | ${hunchResult.traversal.filesInspected.length} files | ${openjevResult.traversal.filesInspected.length} files | Candidate files read & chunked |
+| **Target Files Identified** | ${hunchResult.targetFiles.join(", ") || "None"} | ${openjevResult.targetFiles.join(", ") || "None"} | Isolated target problem area |
+| **Reference Files** | ${hunchResult.referenceFiles.join(", ") || "None"} | ${openjevResult.referenceFiles.join(", ") || "None"} | Contextual dependencies |
+| **Context Snippets** | ${hunchResult.totalSnippets} snippets (${hunchResult.totalLines} lines) | ${openjevResult.totalSnippets} snippets (${openjevResult.totalLines} lines) | Focused context size |
+| **Context Sufficiency** | p=${hunchResult.traversal.sufficiency.sufficiencyProbability.toFixed(2)} (${hunchResult.traversal.sufficiency.readinessLegend}) | p=${openjevResult.traversal.sufficiency.sufficiencyProbability.toFixed(2)} (${openjevResult.traversal.sufficiency.readinessLegend}) | Early termination trigger |
 
 ---
 
 ## 2. Feature Flag Usage & Configuration
 
-You can seamlessly switch between JEV and OpenJEV via command line arguments or environment variables:
+You can seamlessly switch between Hunch Cloud and OpenJEV via command line arguments or environment variables:
 
 \`\`\`bash
-# 1. Run with JEV (TypeSafe API):
-npx tsx src/index.ts "Fix currency exchange rate caching in fx-service" --engine jev
+# 1. Run with Hunch (Cloud API):
+hunch "Fix currency exchange rate caching in fx-service" --hunch
 
 # 2. Run with OpenJEV (Local fastcontext-4b model):
-npx tsx src/index.ts "Fix currency exchange rate caching in fx-service" --engine openjev
+hunch "Fix currency exchange rate caching in fx-service" --openjev
 # Or shorthand:
-npx tsx src/index.ts "Fix currency exchange rate caching in fx-service" --openjev
+hunch "Fix currency exchange rate caching in fx-service" --local
 
 # 3. Via Environment Variable:
-export JEV_ENGINE=openjev
+export HUNCH_ENGINE=openjev
 # or
 export USE_OPENJEV=1
 \`\`\`
@@ -139,9 +139,9 @@ export USE_OPENJEV=1
 
 ## 3. Pre-Gathered Context Packages
 
-### TypeSafe JEV Context Package:
+### Hunch Cloud Context Package:
 \`\`\`markdown
-${jevResult.markdownContext}
+${hunchResult.markdownContext}
 \`\`\`
 
 ### OpenJEV Context Package:

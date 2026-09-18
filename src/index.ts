@@ -5,7 +5,7 @@ import { traverseRepository } from "./traverser.js";
 import { formatResultMarkdown, formatResultJson } from "./formatter.js";
 import { TraversalConfig, EngineType } from "./types.js";
 import {
-  renderJevEvent,
+  renderHunchEvent,
   renderCodexStart,
   renderCodexSummary,
   c,
@@ -38,19 +38,19 @@ function parseArgs(args: string[]): {
       const arg = args[i];
       if (arg === "--dir" || arg === "-d") {
         dir = args[++i] || dir;
-      } else if (arg === "--local-url" || arg === "--url" || arg === "--openjev-url") {
+      } else if (arg === "--local-url" || arg === "--url" || arg === "--openjev-url" || arg === "--hunch-url") {
         localUrl = args[++i];
         engine = "openjev";
       } else if (arg === "--local" || arg === "--openjev") {
         engine = "openjev";
-      } else if (arg === "--jev" || arg === "--cloud") {
-        engine = "jev";
+      } else if (arg === "--hunch" || arg === "--cloud" || arg === "--jev") {
+        engine = "hunch";
       } else if (arg === "--engine") {
         const val = (args[++i] || "").toLowerCase();
         if (val === "openjev" || val === "local") {
           engine = "openjev";
-        } else if (val === "jev" || val === "cloud") {
-          engine = "jev";
+        } else if (val === "hunch" || val === "jev" || val === "cloud") {
+          engine = "hunch";
         }
       } else if (arg === "--model" || arg === "-m") {
         model = args[++i];
@@ -66,17 +66,18 @@ function parseArgs(args: string[]): {
         maxRounds = parseInt(args[++i] || "8", 10);
       } else if (arg === "--help" || arg === "-h") {
         console.log(`
-  JEV Repo Traverser - System One Repository Context Finder
+  Hunch - System One Repository Context Finder
   
   Usage:
-    jev-researcher "<task description>" [options]
+    hunch "<task description>" [options]
+    npx hunch "<task description>" [options]
     npx tsx src/index.ts "<task description>" [options]
   
-  Engine Options (Default: TypeSafe JEV Cloud API):
-    --local-url <url>       Use local System One engine at specified URL (e.g. http://127.0.0.1:8081/v1)
+  Engine Options (Default: TypeSafe Hunch Cloud API):
+    --local-url <url>       Use local System One engine at specified URL (e.g. http://127.0.0.1:8080/v1)
     --local                 Use local System One engine at default endpoint (http://127.0.0.1:8080/v1)
     --model, -m <model>     Target model name for local inference (default: gemma-4-E4B_q4_0-it)
-    --jev                   Explicitly use TypeSafe JEV cloud API
+    --hunch                 Explicitly use TypeSafe Hunch cloud API
 
   Options:
     --dir, -d <path>        Target repository directory (default: current directory)
@@ -88,9 +89,9 @@ function parseArgs(args: string[]): {
     --help, -h              Show this help message
   
   Environment Variables:
-    OPENJEV_URL, LOCAL_URL  Set local server endpoint (automatically activates local engine)
-    OPENJEV_MODEL           Set default model name for local inference
-    TYPESAFE_API_KEY        TypeSafe API Key for default cloud JEV
+    HUNCH_LOCAL_URL, OPENJEV_URL, LOCAL_URL   Set local server endpoint (activates local engine)
+    HUNCH_MODEL, OPENJEV_MODEL               Set default model name for local inference
+    HUNCH_API_KEY, TYPESAFE_API_KEY          API Key for default cloud Hunch
   `);
         process.exit(0);
       } else if (!arg.startsWith("-")) {
@@ -104,7 +105,7 @@ function parseArgs(args: string[]): {
   
     if (!task.trim()) {
       console.error("Error: Task description is required.");
-      console.error('Usage: jev-researcher "<task description>" [--dir <repo-dir>]');
+      console.error('Usage: hunch "<task description>" [--dir <repo-dir>]');
       process.exit(1);
     }
   
@@ -147,7 +148,7 @@ async function main() {
     maxDepth: 6,
     maxRounds,
     verbose,
-    onEvent: json ? undefined : renderJevEvent,
+    onEvent: json ? undefined : renderHunchEvent,
   };
 
   try {

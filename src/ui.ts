@@ -1,5 +1,5 @@
 /**
- * Rich CLI UI & Streaming utilities for JEV Researcher and Codex.
+ * Rich CLI UI & Streaming utilities for Hunch Context Gatherer and Codex.
  */
 
 export const c = {
@@ -47,8 +47,11 @@ export function formatPct(val: number): string {
   return `${c.gray}${pct}%${c.reset}`;
 }
 
-export function renderJevEvent(event: any): void {
-  const engineLabel = event.engine === "openjev" ? "OpenJEV" : "JEV";
+export function renderHunchEvent(event: any): void {
+  const engineLabel =
+    event.engine === "openjev" || event.engine === "local"
+      ? "OpenJEV"
+      : "Hunch";
   switch (event.type) {
     case "start":
       console.log(`${c.cyan}⚡ [${engineLabel} System One]${c.reset} Initializing parallel tree traversal...`);
@@ -59,7 +62,7 @@ export function renderJevEvent(event: any): void {
 
     case "dir_exploring":
       console.log(
-        `${c.cyan}📂 [Round ${event.round}]${c.reset} Exploring ${c.bold}"${event.dir || "."}"${c.reset} ` +
+        `${c.cyan}📁 [Round ${event.round}]${c.reset} Exploring ${c.bold}"${event.dir || "."}"${c.reset} ` +
         `${c.dim}(depth: ${event.depth}, score: ${event.score.toFixed(2)})${c.reset}`
       );
       break;
@@ -127,6 +130,9 @@ export function renderJevEvent(event: any): void {
       break;
   }
 }
+
+// Backward-compatible alias
+export const renderJevEvent = renderHunchEvent;
 
 export function renderCodexStart(profile: string, model: string): void {
   console.log(`\n${c.cyan}╭──────────────── Codex Agent Hand-off ────────────────╮${c.reset}`);
