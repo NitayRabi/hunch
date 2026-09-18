@@ -20,8 +20,17 @@ export async function runHook() {
   });
 
   let inputData = "";
-  for await (const line of rl) {
-    inputData += line + "\n";
+  try {
+    for await (const line of rl) {
+      inputData += line + "\n";
+    }
+  } catch (err) {
+    // Stdin read error — treat as no input and exit silently so the caller's
+    // prompt flow isn't disrupted, matching the empty-input passthrough above.
+    process.stderr.write(`${c.red}[JEV System One]${c.reset} Hook failed: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.exit(0);
+  } finally {
+    rl.close();
   }
 
   if (!inputData.trim()) {
@@ -30,6 +39,11 @@ export async function runHook() {
 
   try {
     const event = JSON.parse(inputData);
+    if (typeof event !== "object" || event === null || Array.isArray(event)) {
+      process.stderr.write(`${c.red}[JEV System One]${c.reset} Hook failed: expected a JSON object payload\n`);
+      process.exit(0);
+    }
+
     const prompt = event.prompt || event.message || event.task || "";
     if (!prompt.trim()) {
       process.exit(0);
@@ -95,8 +109,12 @@ export async function runHook() {
     console.log(JSON.stringify(output));
     process.exit(0);
   } catch (err) {
-    // Fail silently on error, clearing status line
+    // Clear the status line, then surface the error to stderr.
+    // The hook still exits 0 so the caller's prompt flow isn't disrupted,
+    // but the failure is logged for debugging.
     process.stderr.write(`\r\x1b[K`);
+    const message = err instanceof Error ? (err.stack || err.message) : String(err);
+    process.stderr.write(`${c.red}[JEV System One]${c.reset} Hook failed: ${message}\n`);
     process.exit(0);
   }
 }

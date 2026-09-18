@@ -6,10 +6,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh",
+            "command": "node",
             "args": [
-              "-c",
-              "node \"$CLAUDE_PLUGIN_ROOT/dist/index.js\" --hook || hunch --hook"
+              "${CLAUDE_PLUGIN_ROOT}/dist/index.js",
+              "--hook"
             ],
             "timeout": 60
           }
