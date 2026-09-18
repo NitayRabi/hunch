@@ -1,0 +1,7 @@
+{
+  "name": "jev-researcher",
+  "version": "1.0.0",
+  "description": "Pre-gathers codebase context via TypeSafe JEV parallel tree traversal before the agent acts",
+  "hooks": "./hooks/hooks.json",
+  "rules": "./rules/AGENTS.md"
+}

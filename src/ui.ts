@@ -48,10 +48,12 @@ export function formatPct(val: number): string {
 }
 
 export function renderJevEvent(event: any): void {
+  const engineLabel = event.engine === "openjev" ? "OpenJEV" : "JEV";
   switch (event.type) {
     case "start":
-      console.log(`${c.cyan}⚡ [JEV System One]${c.reset} Initializing parallel tree traversal...`);
+      console.log(`${c.cyan}⚡ [${engineLabel} System One]${c.reset} Initializing parallel tree traversal...`);
       console.log(`   ${c.dim}Task:${c.reset} ${c.bold}${event.task}${c.reset}`);
+      console.log(`   ${c.dim}Engine:${c.reset} ${c.green}${engineLabel}${c.reset}`);
       console.log(`   ${c.dim}Root:${c.reset} ${event.rootDir}\n`);
       break;
 
@@ -110,43 +112,43 @@ export function renderJevEvent(event: any): void {
       break;
 
     case "finished":
-      console.log(`\n${c.green}╭──────────────── JEV Traversal Complete ────────────────╮${c.reset}`);
+      const title = ` ${engineLabel} Traversal Complete `;
+      const fillLen = Math.max(0, 54 - title.length);
+      const leftPad = "─".repeat(Math.floor(fillLen / 2));
+      const rightPad = "─".repeat(Math.ceil(fillLen / 2));
+      console.log(`\n${c.green}╭${leftPad}${title}${rightPad}╮${c.reset}`);
+      console.log(`${c.green}│${c.reset}  Engine:            ${c.bold}${engineLabel}${c.reset}`.padEnd(65) + `${c.green}│${c.reset}`);
       console.log(`${c.green}│${c.reset}  Duration:          ${c.bold}${(event.durationMs / 1000).toFixed(2)}s${c.reset}`.padEnd(65) + `${c.green}│${c.reset}`);
-      console.log(`${c.green}│${c.reset}  JEV API Calls:     ${c.bold}${event.totalCalls}${c.reset} parallel evaluations`.padEnd(65) + `${c.green}│${c.reset}`);
+      console.log(`${c.green}│${c.reset}  API Requests:      ${c.bold}${event.totalCalls}${c.reset} parallel evaluations`.padEnd(65) + `${c.green}│${c.reset}`);
       console.log(`${c.green}│${c.reset}  Directories:       ${c.bold}${event.dirsTraversed}${c.reset} explored`.padEnd(65) + `${c.green}│${c.reset}`);
       console.log(`${c.green}│${c.reset}  Target Files:      ${c.bold}${event.targetFilesCount}${c.reset} to modify, ${event.referenceFilesCount} reference`.padEnd(65) + `${c.green}│${c.reset}`);
       console.log(`${c.green}│${c.reset}  Context Size:      ${c.bold}${event.totalLinesGathered}${c.reset} lines gathered`.padEnd(65) + `${c.green}│${c.reset}`);
-      console.log(`${c.green}╰────────────────────────────────────────────────────────╯${c.reset}\n`);
+      console.log(`${c.green}╰──────────────────────────────────────────────────────╯${c.reset}\n`);
       break;
   }
 }
 
 export function renderCodexStart(profile: string, model: string): void {
-  console.log(`${c.magenta}╭────────────────────────────────────────────────────────╮${c.reset}`);
-  console.log(`${c.magenta}│${c.reset}  ${c.bold}🤖 Handing off context to Local Codex CLI${c.reset}`.padEnd(65) + `${c.magenta}│${c.reset}`);
-  console.log(`${c.magenta}│${c.reset}  ${c.dim}Profile:${c.reset} ${profile}  ${c.dim}| Model:${c.reset} ${model}`.padEnd(65) + `${c.magenta}│${c.reset}`);
-  console.log(`${c.magenta}│${c.reset}  ${c.dim}Mode: Zero-search direct synthesis (pre-gathered)${c.reset}`.padEnd(65) + `${c.magenta}│${c.reset}`);
-  console.log(`${c.magenta}╰────────────────────────────────────────────────────────╯${c.reset}\n`);
-}
-
-export function renderCodexChunk(text: string): void {
-  process.stdout.write(text);
+  console.log(`\n${c.cyan}╭──────────────── Codex Agent Hand-off ────────────────╮${c.reset}`);
+  console.log(`${c.cyan}│${c.reset}  Profile:           ${c.bold}${profile}${c.reset}`.padEnd(65) + `${c.cyan}│${c.reset}`);
+  console.log(`${c.cyan}│${c.reset}  Model:             ${c.bold}${model}${c.reset}`.padEnd(65) + `${c.cyan}│${c.reset}`);
+  console.log(`${c.cyan}│${c.reset}  Mode:              ${c.green}Guided (Direct synthesis, no search)${c.reset}`.padEnd(65) + `${c.cyan}│${c.reset}`);
+  console.log(`${c.cyan}╰──────────────────────────────────────────────────────╯${c.reset}\n`);
 }
 
 export function renderCodexSummary(
-  durationMs: number,
-  jevDurationMs: number,
+  codexDurationMs: number,
+  traversalDurationMs: number,
   inputTokens: number,
   outputTokens: number,
   toolCallsCount: number
 ): void {
-  const totalDuration = ((durationMs + jevDurationMs) / 1000).toFixed(2);
-  const codexSec = (durationMs / 1000).toFixed(2);
-  const jevSec = (jevDurationMs / 1000).toFixed(2);
-
-  console.log(`\n${c.cyan}╭──────────────── Codex Execution Summary ───────────────╮${c.reset}`);
-  console.log(`${c.cyan}│${c.reset}  Codex Inference:   ${c.bold}${codexSec}s${c.reset} (Total: ${totalDuration}s incl. ${jevSec}s JEV)`.padEnd(65) + `${c.cyan}│${c.reset}`);
-  console.log(`${c.cyan}│${c.reset}  Tokens:            In: ${c.bold}${inputTokens.toLocaleString()}${c.reset} | Out: ${c.bold}${outputTokens.toLocaleString()}${c.reset} | Total: ${(inputTokens + outputTokens).toLocaleString()}`.padEnd(65) + `${c.cyan}│${c.reset}`);
-  console.log(`${c.cyan}│${c.reset}  Tool Calls:        ${c.bold}${toolCallsCount}${c.reset} (bypassed exploratory search)`.padEnd(65) + `${c.cyan}│${c.reset}`);
-  console.log(`${c.cyan}╰────────────────────────────────────────────────────────╯${c.reset}\n`);
+  const totalTime = ((codexDurationMs + traversalDurationMs) / 1000).toFixed(2);
+  console.log(`\n${c.magenta}╭──────────────── Codex Execution Summary ─────────────╮${c.reset}`);
+  console.log(`${c.magenta}│${c.reset}  Synthesis Time:    ${c.bold}${(codexDurationMs / 1000).toFixed(2)}s${c.reset}`.padEnd(65) + `${c.magenta}│${c.reset}`);
+  console.log(`${c.magenta}│${c.reset}  Total Wall Time:   ${c.bold}${totalTime}s${c.reset} (Traversal + Synthesis)`.padEnd(65) + `${c.magenta}│${c.reset}`);
+  console.log(`${c.magenta}│${c.reset}  Input Tokens:      ${c.bold}${inputTokens.toLocaleString()}${c.reset}`.padEnd(65) + `${c.magenta}│${c.reset}`);
+  console.log(`${c.magenta}│${c.reset}  Output Tokens:     ${c.bold}${outputTokens.toLocaleString()}${c.reset}`.padEnd(65) + `${c.magenta}│${c.reset}`);
+  console.log(`${c.magenta}│${c.reset}  Search Tool Calls: ${c.bold}${toolCallsCount}${c.reset} (Zero grep/find overhead)`.padEnd(65) + `${c.magenta}│${c.reset}`);
+  console.log(`${c.magenta}╰──────────────────────────────────────────────────────╯${c.reset}\n`);
 }

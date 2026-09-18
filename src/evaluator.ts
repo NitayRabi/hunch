@@ -1,10 +1,11 @@
-import { TypeSafeClient, noul, choice, score } from "@typesafe-ai/sdk";
+import { noul, choice, score } from "@typesafe-ai/sdk";
 import {
   DirectoryChild,
   EntryEvaluation,
   GatheredFileContext,
   CodeSnippet,
   SufficiencyEvaluation,
+  SystemOneClient,
 } from "./types.js";
 import { FileChunk } from "./fs-utils.js";
 
@@ -14,7 +15,7 @@ const BATCH_SIZE = 30;
  * Evaluates direct child entries of a directory in parallel speculative batches.
  */
 export async function evaluateDirectoryEntries(
-  client: TypeSafeClient,
+  client: SystemOneClient,
   task: string,
   currentDir: string,
   children: DirectoryChild[]
@@ -88,7 +89,7 @@ export async function evaluateDirectoryEntries(
  * Inspects file content, determines role, and extracts relevant snippet chunks.
  */
 export async function evaluateFileContent(
-  client: TypeSafeClient,
+  client: SystemOneClient,
   task: string,
   relativePath: string,
   fileData: { fullContent: string; lines: string[]; chunks: FileChunk[] },
@@ -126,9 +127,9 @@ export async function evaluateFileContent(
       },
     });
 
-    const role = (response.answers.role.choice as "modify" | "reference" | "irrelevant") || "reference";
-    const relevance = response.answers.relevance.noul ?? 0.5;
-    const confidence = response.answers.role.confidence ?? 0.5;
+    const role = (response.answers.role?.choice as "modify" | "reference" | "irrelevant") || "reference";
+    const relevance = response.answers.relevance?.noul ?? 0.5;
+    const confidence = response.answers.role?.confidence ?? 0.5;
 
     const snippets: CodeSnippet[] = [];
     if (role !== "irrelevant" && relevance >= 0.35) {
@@ -150,7 +151,7 @@ export async function evaluateFileContent(
     };
   }
 
-  // Multi-chunk file: limit chunks to at most 10 most relevant to avoid huge state
+  // Multi-chunk file: limit chunks to at most 12 most relevant to avoid huge state
   const chunksToEvaluate = chunks.slice(0, 12);
 
   const state = {
@@ -186,9 +187,9 @@ export async function evaluateFileContent(
     },
   });
 
-  const role = (response.answers.role.choice as "modify" | "reference" | "irrelevant") || "reference";
-  const relevance = response.answers.relevance.noul ?? 0.5;
-  const confidence = response.answers.role.confidence ?? 0.5;
+  const role = (response.answers.role?.choice as "modify" | "reference" | "irrelevant") || "reference";
+  const relevance = response.answers.relevance?.noul ?? 0.5;
+  const confidence = response.answers.role?.confidence ?? 0.5;
 
   const scoredChunks: { chunk: FileChunk; score: number }[] = [];
   const answersMap = response.answers as Record<string, any>;
@@ -245,7 +246,7 @@ export async function evaluateFileContent(
  * Evaluates whether the currently gathered context is sufficient to solve the task.
  */
 export async function evaluateContextSufficiency(
-  client: TypeSafeClient,
+  client: SystemOneClient,
   task: string,
   gatheredContext: GatheredFileContext[]
 ): Promise<SufficiencyEvaluation> {
@@ -296,12 +297,12 @@ export async function evaluateContextSufficiency(
     },
   });
 
-  const sufficiencyProbability = response.answers.is_sufficient.noul ?? 0;
-  const readinessScore = response.answers.readiness.score ?? 0;
-  const nextAction = response.answers.next_action.choice as
+  const sufficiencyProbability = response.answers.is_sufficient?.noul ?? 0;
+  const readinessScore = response.answers.readiness?.score ?? 0;
+  const nextAction = (response.answers.next_action?.choice as
     | "stop_sufficient"
     | "continue_missing_impl"
-    | "continue_missing_refs";
+    | "continue_missing_refs") || "continue_missing_refs";
 
   const isSufficient = sufficiencyProbability >= 0.65 || nextAction === "stop_sufficient" || readinessScore >= 2.0;
 

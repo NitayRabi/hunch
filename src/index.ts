@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { createClient } from "./client.js";
 import { traverseRepository } from "./traverser.js";
 import { formatResultMarkdown, formatResultJson } from "./formatter.js";
-import { TraversalConfig } from "./types.js";
+import { TraversalConfig, EngineType } from "./types.js";
 import {
   renderJevEvent,
   renderCodexStart,
@@ -14,6 +14,9 @@ import {
 function parseArgs(args: string[]): {
     task: string;
     dir: string;
+    engine?: EngineType;
+    localUrl?: string;
+    model?: string;
     json: boolean;
     verbose: boolean;
     codex: boolean;
@@ -22,6 +25,9 @@ function parseArgs(args: string[]): {
   } {
     let task = "";
     let dir = process.cwd();
+    let engine: EngineType | undefined = undefined;
+    let localUrl: string | undefined = undefined;
+    let model: string | undefined = undefined;
     let json = false;
     let verbose = false;
     let codex = false;
@@ -32,6 +38,22 @@ function parseArgs(args: string[]): {
       const arg = args[i];
       if (arg === "--dir" || arg === "-d") {
         dir = args[++i] || dir;
+      } else if (arg === "--local-url" || arg === "--url" || arg === "--openjev-url") {
+        localUrl = args[++i];
+        engine = "openjev";
+      } else if (arg === "--local" || arg === "--openjev") {
+        engine = "openjev";
+      } else if (arg === "--jev" || arg === "--cloud") {
+        engine = "jev";
+      } else if (arg === "--engine") {
+        const val = (args[++i] || "").toLowerCase();
+        if (val === "openjev" || val === "local") {
+          engine = "openjev";
+        } else if (val === "jev" || val === "cloud") {
+          engine = "jev";
+        }
+      } else if (arg === "--model" || arg === "-m") {
+        model = args[++i];
       } else if (arg === "--json") {
         json = true;
       } else if (arg === "--verbose" || arg === "-v") {
@@ -44,23 +66,31 @@ function parseArgs(args: string[]): {
         maxRounds = parseInt(args[++i] || "8", 10);
       } else if (arg === "--help" || arg === "-h") {
         console.log(`
-  JEV Repo Traverser - TypeSafe AI Repository Context Finder
+  JEV Repo Traverser - System One Repository Context Finder
   
   Usage:
     jev-researcher "<task description>" [options]
     npx tsx src/index.ts "<task description>" [options]
   
+  Engine Options (Default: TypeSafe JEV Cloud API):
+    --local-url <url>       Use local System One engine at specified URL (e.g. http://127.0.0.1:8081/v1)
+    --local                 Use local System One engine at default endpoint (http://127.0.0.1:8080/v1)
+    --model, -m <model>     Target model name for local inference (default: gemma-4-E4B_q4_0-it)
+    --jev                   Explicitly use TypeSafe JEV cloud API
+
   Options:
-    --dir, -d <path>     Target repository directory (default: current directory)
-    --verbose, -v        Show live traversal steps, probabilities, and decisions
-    --codex              Run local Codex CLI with pre-gathered context at the end
-    --json               Output full structured JSON payload
-    --max-files <num>    Maximum files to inspect (default: 16)
-    --max-rounds <num>   Maximum traversal rounds (default: 8)
-    --help, -h           Show this help message
+    --dir, -d <path>        Target repository directory (default: current directory)
+    --verbose, -v           Show live traversal steps, probabilities, and decisions
+    --codex                 Run local Codex CLI with pre-gathered context at the end
+    --json                  Output full structured JSON payload
+    --max-files <num>       Maximum files to inspect (default: 16)
+    --max-rounds <num>      Maximum traversal rounds (default: 8)
+    --help, -h              Show this help message
   
   Environment Variables:
-    TYPESAFE_API_KEY     TypeSafe API Key (falls back to configured default)
+    OPENJEV_URL, LOCAL_URL  Set local server endpoint (automatically activates local engine)
+    OPENJEV_MODEL           Set default model name for local inference
+    TYPESAFE_API_KEY        TypeSafe API Key for default cloud JEV
   `);
         process.exit(0);
       } else if (!arg.startsWith("-")) {
@@ -81,6 +111,9 @@ function parseArgs(args: string[]): {
     return {
       task: task.trim(),
       dir: path.resolve(dir),
+      engine,
+      localUrl,
+      model,
       json,
       verbose,
       codex,
@@ -91,9 +124,18 @@ function parseArgs(args: string[]): {
   
 async function main() {
   const args = process.argv.slice(2);
-  const { task, dir, json, verbose, codex, maxFiles, maxRounds } = parseArgs(args);
+  if (args.includes("--hook")) {
+    const { runHook } = await import("./hook.js");
+    await runHook();
+    return;
+  }
+  const { task, dir, engine, localUrl, model, json, verbose, codex, maxFiles, maxRounds } = parseArgs(args);
 
-  const client = createClient();
+  const { client } = createClient({
+    engine,
+    localUrl,
+    model,
+  });
 
   const config: TraversalConfig = {
     rootDir: dir,
@@ -121,15 +163,7 @@ async function main() {
     if (codex) {
       renderCodexStart("local", "Tiel-Coder-35B-A3B-MTP-UD-Q4_K_XL");
 
-      const codexPrompt = `Task: ${task}
-
-PRE-GATHERED REPOSITORY CONTEXT:
-${markdown}
-
-INSTRUCTIONS FOR AGENT:
-You are provided with pre-gathered repository context and exact file snippets above.
-DO NOT execute shell or terminal commands (no bash, no grep, no find).
-Act directly on the pre-gathered context and target files provided above to analyze the bugs and output the complete, corrected code implementation.`;
+      const codexPrompt = `Task: ${task}\n\nPRE-GATHERED REPOSITORY CONTEXT:\n${markdown}\n\nINSTRUCTIONS FOR AGENT:\nYou are provided with pre-gathered repository context and exact file snippets above.\nDO NOT execute shell or terminal commands (no bash, no grep, no find).\nAct directly on the pre-gathered context and target files provided above to analyze the bugs and output the complete, corrected code implementation.`;
 
       const { runCodex } = await import("./codex.js");
 
@@ -143,9 +177,6 @@ Act directly on the pre-gathered context and target files provided above to anal
             console.log(`\n${c.yellow}⚙️  [Codex Tool #${event.index}]${c.reset} ${event.command}`);
           }
         },
-        onChunk: (text) => {
-          process.stdout.write(text);
-        },
       });
 
       renderCodexSummary(
@@ -153,11 +184,12 @@ Act directly on the pre-gathered context and target files provided above to anal
         result.durationMs,
         codexRes.inputTokens,
         codexRes.outputTokens,
-        codexRes.toolCallsCount
+        codexRes.toolCallsCount,
       );
     }
-  } catch (err) {
-    console.error("Fatal error during repository traversal:", err);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`\n${c.red}Traversal Error:${c.reset} ${message}`);
     process.exit(1);
   }
 }
