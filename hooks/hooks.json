@@ -6,11 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node",
-            "args": [
-              "${CLAUDE_PLUGIN_ROOT}/dist/index.js",
-              "--hook"
-            ],
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/index.js\" --hook",
             "timeout": 60
           }
         ]
