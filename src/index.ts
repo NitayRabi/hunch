@@ -38,18 +38,18 @@ function parseArgs(args: string[]): {
       const arg = args[i];
       if (arg === "--dir" || arg === "-d") {
         dir = args[++i] || dir;
-      } else if (arg === "--local-url" || arg === "--url" || arg === "--openjev-url" || arg === "--hunch-url") {
+      } else if (arg === "--local-url" || arg === "--url") {
         localUrl = args[++i];
         engine = "openjev";
-      } else if (arg === "--local" || arg === "--openjev") {
+      } else if (arg === "--local") {
         engine = "openjev";
-      } else if (arg === "--hunch" || arg === "--cloud" || arg === "--jev") {
+      } else if (arg === "--cloud") {
         engine = "hunch";
       } else if (arg === "--engine") {
         const val = (args[++i] || "").toLowerCase();
-        if (val === "openjev" || val === "local") {
+        if (val === "local" || val === "openjev") {
           engine = "openjev";
-        } else if (val === "hunch" || val === "jev" || val === "cloud") {
+        } else if (val === "cloud" || val === "hunch") {
           engine = "hunch";
         }
       } else if (arg === "--model" || arg === "-m") {
@@ -77,10 +77,10 @@ function parseArgs(args: string[]): {
     --local-url <url>       Use local System One engine at specified URL (e.g. http://127.0.0.1:8080/v1)
     --local                 Use local System One engine at default endpoint (http://127.0.0.1:8080/v1)
     --model, -m <model>     Target model name for local inference (default: gemma-4-E4B_q4_0-it)
-    --hunch, --jev          Explicitly use TypeSafe JEV cloud API
+    --cloud                 Explicitly use TypeSafe JEV cloud API
 
   Options:
-    --dir, -d <path>        Target repository directory (default: current directory)
+    --dir, -d <path>        Target repository path (default: current directory)
     --verbose, -v           Show live traversal steps, probabilities, and decisions
     --codex                 Run local Codex CLI with pre-gathered context at the end
     --json                  Output full structured JSON payload

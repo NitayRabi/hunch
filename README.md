@@ -56,9 +56,9 @@ hunch "Fix edge case in date parsing for leap years" --codex
 | `--verbose, -v` | Stream live traversal steps and probabilities | `false` |
 | `--json` | Output machine-readable JSON context package | `false` |
 | `--local-url <url>` | Use local System One engine at specified URL | `undefined` (uses Cloud JEV) |
-| `--local, --openjev` | Use local System One engine at `http://127.0.0.1:8080/v1` | `false` |
+| `--local` | Use local System One engine at `http://127.0.0.1:8080/v1` | `false` |
 | `--model, -m <model>` | Local inference model name | `gemma-4-E4B_q4_0-it` |
-| `--hunch, --cloud` | Explicitly force TypeSafe Cloud System One engine | Default |
+| `--cloud` | Explicitly force TypeSafe Cloud System One engine | Default |
 | `--max-files <num>` | Maximum number of files to inspect | `16` |
 | `--max-rounds <num>` | Maximum traversal rounds | `8` |
 | `--codex` | Automatically hand off pre-gathered context to Codex | `false` |

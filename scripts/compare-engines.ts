@@ -122,11 +122,9 @@ You can seamlessly switch between Hunch Cloud and OpenJEV via command line argum
 
 \`\`\`bash
 # 1. Run with Hunch (Cloud API):
-hunch "Fix currency exchange rate caching in fx-service" --hunch
+hunch "Fix currency exchange rate caching in fx-service" --cloud
 
 # 2. Run with OpenJEV (Local fastcontext-4b model):
-hunch "Fix currency exchange rate caching in fx-service" --openjev
-# Or shorthand:
 hunch "Fix currency exchange rate caching in fx-service" --local
 
 # 3. Via Environment Variable:
@@ -154,7 +152,7 @@ ${openjevResult.markdownContext}
   await fs.writeFile(outputPath, report, "utf-8");
   console.log(`\n=============================================================`);
   console.log(`Comparison benchmark report saved to: ${outputPath}`);
-  console.log(`=============================================================\n`);
+  console.log(`=============================================================\\n`);
 }
 
 main().catch(console.error);
