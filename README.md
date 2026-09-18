@@ -1,4 +1,8 @@
-# Hunch ⚡
+<p align="center">
+  <img src="assets/logo.png" alt="Hunch Logo" width="180" />
+</p>
+
+# Hunch
 
 Fast, zero-string-search repository context gatherer powered by **System One Decision Primitives** ([TypeSafe JEV](https://typesafe.ai) & [OpenJEV](https://github.com/TheoLeeCJ/openjev)).
 
@@ -120,9 +124,9 @@ Pre-gathering repository context with Hunch significantly reduces agent executio
 - **Exploration Latency**: ~3–8 seconds parallel traversal vs. multi-minute autonomous tool-calling loops.
 
 See detailed reports:
-- [BENCHMARK_COMPARISON.md](file:///home/nitayrabi/.t3/worktrees/jev-researcher/t3code-c3b2e258/BENCHMARK_COMPARISON.md)
-- [ENGINE_COMPARISON.md](file:///home/nitayrabi/.t3/worktrees/jev-researcher/t3code-c3b2e258/ENGINE_COMPARISON.md)
-- [SWEBENCH_LITE_REPORT.md](file:///home/nitayrabi/.t3/worktrees/jev-researcher/t3code-c3b2e258/SWEBENCH_LITE_REPORT.md)
+- [BENCHMARK_COMPARISON.md](BENCHMARK_COMPARISON.md)
+- [ENGINE_COMPARISON.md](ENGINE_COMPARISON.md)
+- [SWEBENCH_LITE_REPORT.md](SWEBENCH_LITE_REPORT.md)
 
 ---
 
