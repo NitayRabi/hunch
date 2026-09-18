@@ -13,7 +13,8 @@ Given a codebase and a task prompt, `hunch` navigates directory hierarchies usin
 - 💻 [Run Standalone](#1-standalone-cli)
 - 🔌 [Configure as Coding Plugin](#2-hunch-plugin-for-coding-agents)
 - ⚙️ [Configuration & Environment Variables](#3-configuration--environment-variables)
-- 📊 [Benchmarks & Reports](#4-benchmark-highlights)
+- 📊 [Preliminary Benchmarks](#4-preliminary-benchmarks)
+- 🗺️ [Roadmap](#5-roadmap)
 
 ---
 
@@ -115,18 +116,29 @@ Or reference this repository directory directly in your agent configuration.
 
 ---
 
-## 4. Benchmark Highlights
+## 4. Preliminary Benchmarks
 
-Pre-gathering repository context with Hunch significantly reduces agent execution time, context window pollution, and token usage:
+Early evaluation on a preliminary sample of **5 tasks from SWE-bench Lite** shows promising reductions in context gathering time and exploratory overhead:
 
-- **SWE-bench Lite**: 100% target file hit rate with **3.4x average overall speedup** over stock autonomous exploration.
-- **Zero Shell Tool Overhead**: Coding models execute fixes in a single turn without wandering across unrelated files.
+- **SWE-bench Lite (5-task preliminary sample)**: Successfully located target files with ~3.4x average speedup in context localization compared to unguided exploration.
+- **Decreased Exploration Tool Calls**: Noticeable decrease in agent research tool calls (`grep`, `find`, shell exploration) as candidate files and relevant snippets are pre-injected into the prompt context.
 - **Exploration Latency**: ~3–8 seconds parallel traversal vs. multi-minute autonomous tool-calling loops.
+
+> [!NOTE]
+> These metrics represent preliminary checks on 5 sample SWE-bench Lite tasks. Full benchmarking across the complete suite is ongoing.
 
 See detailed reports:
 - [BENCHMARK_COMPARISON.md](BENCHMARK_COMPARISON.md)
 - [ENGINE_COMPARISON.md](ENGINE_COMPARISON.md)
 - [SWEBENCH_LITE_REPORT.md](SWEBENCH_LITE_REPORT.md)
+
+---
+
+## 5. Roadmap
+
+- [ ] **Full SWE-bench Lite Benchmark**: Run full evaluation across the complete 300-task SWE-bench Lite dataset.
+- [ ] **Adaptive Traversal Heuristics**: Dynamically tune depth and file chunk inspection based on repository size.
+- [ ] **Multi-Repo Federation**: Support fast context gathering across microservice repositories and mono-repos.
 
 ---
 
