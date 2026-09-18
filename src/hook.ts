@@ -4,6 +4,7 @@ import { createClient } from "./client.js";
 import { traverseRepository } from "./traverser.js";
 import { classifyPromptIntent } from "./evaluator.js";
 import { formatResultMarkdown } from "./formatter.js";
+import { renderHookStatus, c } from "./ui.js";
 import { TraversalConfig } from "./types.js";
 
 /**
@@ -40,12 +41,17 @@ export async function runHook() {
     }
 
     const { client, engine } = createClient();
+    const engineLabel = engine === "openjev" || engine === "local" ? "OpenJEV" : "Hunch";
+
+    // Show initial subtle status on stderr
+    process.stderr.write(`\r\x1b[K⚡ ${c.cyan}[${engineLabel} System One]${c.reset} Analyzing prompt intent...`);
 
     // 1. Eager Hook Classification: Check whether the message warrants a repository search
     const classification = await classifyPromptIntent(client, prompt);
 
-    // If normal conversation, clarification, general question, or web search - skip traversal
+    // If normal conversation, clarification, general question, or web search - clear status and exit silently
     if (!classification.shouldSearch) {
+      process.stderr.write(`\r\x1b[K`);
       process.exit(0);
     }
 
@@ -62,12 +68,14 @@ export async function runHook() {
       maxDepth: 5,
       maxRounds: 6,
       verbose: false,
+      onEvent: renderHookStatus,
     };
 
     const result = await traverseRepository(client, config);
 
-    // If no relevant files were found, pass through
+    // If no relevant files were found, clear status and pass through
     if (result.gatheredContext.length === 0) {
+      process.stderr.write(`\r\x1b[K`);
       process.exit(0);
     }
 
@@ -87,7 +95,8 @@ export async function runHook() {
     console.log(JSON.stringify(output));
     process.exit(0);
   } catch (err) {
-    // Fail silently in hook mode so we never block normal agent execution
+    // Fail silently on error, clearing status line
+    process.stderr.write(`\r\x1b[K`);
     process.exit(0);
   }
 }

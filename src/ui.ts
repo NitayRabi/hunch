@@ -43,8 +43,59 @@ export function badge(label: string, color: "green" | "yellow" | "red" | "cyan" 
 export function formatPct(val: number): string {
   const pct = Math.round(val * 100);
   if (pct >= 80) return `${c.green}${pct}%${c.reset}`;
-  if (pct >= 50) return `${c.yellow}${pct}%${c.reset}`;
+  if (pct >= 50) return `${c.yellow}${pct}%${c.reset}` ;
   return `${c.gray}${pct}%${c.reset}`;
+}
+
+/**
+ * Compact, in-place status updater for Hook mode writing to stderr.
+ * Keeps output to a single dynamically updated line with zero terminal spam.
+ */
+export function renderHookStatus(event: any): void {
+  const engineLabel =
+    event.engine === "openjev" || event.engine === "local"
+      ? "OpenJEV"
+      : "Hunch";
+
+  switch (event.type) {
+    case "start":
+      process.stderr.write(`\r\x1b[K⚡ ${c.cyan}[${engineLabel} System One]${c.reset} Traversing repository...`);
+      break;
+
+    case "dir_exploring":
+      process.stderr.write(
+        `\r\x1b[K⚡ ${c.cyan}[${engineLabel}]${c.reset} Exploring ${c.bold}${event.dir || "."}${c.reset} ${c.dim}(round ${event.round})${c.reset}`
+      );
+      break;
+
+    case "file_inspecting":
+      process.stderr.write(
+        `\r\x1b[K⚡ ${c.cyan}[${engineLabel}]${c.reset} Inspecting ${c.yellow}${event.relativePath}${c.reset}`
+      );
+      break;
+
+    case "file_inspected":
+      if (event.role === "modify") {
+        process.stderr.write(
+          `\r\x1b[K⚡ ${c.cyan}[${engineLabel}]${c.reset} ${c.green}Found target:${c.reset} ${event.relativePath}`
+        );
+      }
+      break;
+
+    case "sufficiency_checking":
+      process.stderr.write(
+        `\r\x1b[K⚡ ${c.cyan}[${engineLabel}]${c.reset} Checking sufficiency ${c.dim}(${event.round}/${event.maxRounds})${c.reset}`
+      );
+      break;
+
+    case "finished":
+      const totalSec = (event.durationMs / 1000).toFixed(2);
+      process.stderr.write(
+        `\r\x1b[K⚡ ${c.green}[${engineLabel}]${c.reset} Context pre-gathered: ${c.bold}${event.targetFilesCount} target file${event.targetFilesCount === 1 ? "" : "s"}${c.reset}` +
+        ` (${event.referenceFilesCount} refs, ${event.totalLinesGathered} lines) in ${c.bold}${totalSec}s${c.reset}\n`
+      );
+      break;
+  }
 }
 
 export function renderHunchEvent(event: any): void {
@@ -126,12 +177,12 @@ export function renderHunchEvent(event: any): void {
       console.log(`${c.green}│${c.reset}  Directories:       ${c.bold}${event.dirsTraversed}${c.reset} explored`.padEnd(65) + `${c.green}│${c.reset}`);
       console.log(`${c.green}│${c.reset}  Target Files:      ${c.bold}${event.targetFilesCount}${c.reset} to modify, ${event.referenceFilesCount} reference`.padEnd(65) + `${c.green}│${c.reset}`);
       console.log(`${c.green}│${c.reset}  Context Size:      ${c.bold}${event.totalLinesGathered}${c.reset} lines gathered`.padEnd(65) + `${c.green}│${c.reset}`);
-      console.log(`${c.green}╰──────────────────────────────────────────────────────╯${c.reset}\n`);
+      console.log(`${c.green}╰───────────────────────────────────────────────────────────────╯${c.reset}\n`);
       break;
   }
 }
 
-// Backward-compatible alias
+// Backward-compatibility alias
 export const renderJevEvent = renderHunchEvent;
 
 export function renderCodexStart(profile: string, model: string): void {
@@ -150,11 +201,11 @@ export function renderCodexSummary(
   toolCallsCount: number
 ): void {
   const totalTime = ((codexDurationMs + traversalDurationMs) / 1000).toFixed(2);
-  console.log(`\n${c.magenta}╭──────────────── Codex Execution Summary ─────────────╮${c.reset}`);
+  console.log(`\n${c.magenta}╭──────────────── Codex Execution Summary ────────────────╮${c.reset}`);
   console.log(`${c.magenta}│${c.reset}  Synthesis Time:    ${c.bold}${(codexDurationMs / 1000).toFixed(2)}s${c.reset}`.padEnd(65) + `${c.magenta}│${c.reset}`);
   console.log(`${c.magenta}│${c.reset}  Total Wall Time:   ${c.bold}${totalTime}s${c.reset} (Traversal + Synthesis)`.padEnd(65) + `${c.magenta}│${c.reset}`);
   console.log(`${c.magenta}│${c.reset}  Input Tokens:      ${c.bold}${inputTokens.toLocaleString()}${c.reset}`.padEnd(65) + `${c.magenta}│${c.reset}`);
   console.log(`${c.magenta}│${c.reset}  Output Tokens:     ${c.bold}${outputTokens.toLocaleString()}${c.reset}`.padEnd(65) + `${c.magenta}│${c.reset}`);
   console.log(`${c.magenta}│${c.reset}  Search Tool Calls: ${c.bold}${toolCallsCount}${c.reset} (Zero grep/find overhead)`.padEnd(65) + `${c.magenta}│${c.reset}`);
-  console.log(`${c.magenta}╰──────────────────────────────────────────────────────╯${c.reset}\n`);
+  console.log(`${c.magenta}╰─────────────────────────────────────────────────────────╯${c.reset}\n`);
 }
