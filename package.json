@@ -12,7 +12,8 @@
     "start": "tsx src/index.ts",
     "traverse": "tsx src/index.ts",
     "compare": "tsx scripts/compare-engines.ts",
-    "benchmark": "tsx scripts/run-benchmark.ts"
+    "benchmark": "tsx scripts/run-benchmark.ts",
+    "swebench": "tsx scripts/run-swebench.ts"
   },
   "dependencies": {
     "@typesafe-ai/sdk": "^0.6.0"
