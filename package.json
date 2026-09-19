@@ -8,7 +8,7 @@
     "hunch": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "node node_modules/typescript/lib/tsc.js",
     "start": "tsx src/index.ts",
     "traverse": "tsx src/index.ts",
     "compare": "tsx scripts/compare-engines.ts",
