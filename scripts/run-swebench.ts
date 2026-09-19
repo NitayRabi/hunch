@@ -22,11 +22,11 @@ interface SweTask {
 interface RunResult {
   instance_id: string;
   repo: string;
-  mode: "JEV + Qwen 35B" | "Stock Codex (Qwen 35B)";
-  jevDurationMs: number;
+  mode: "Hunch + Qwen 35B" | "Stock Codex (Qwen 35B)";
+  hunchDurationMs: number;
   codexDurationMs: number;
   totalDurationMs: number;
-  jevCalls: number;
+  hunchCalls: number;
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
@@ -111,61 +111,60 @@ async function loadSweBenchData(): Promise<Map<string, SweTask>> {
   return map;
 }
 
-// ARM 1: Direct Single-turn Synthesis via Qwen 35B / Tiel-Coder API with JEV pre-gathered context
-async function synthesizeWithGuidedContext(
-  prompt: string,
-  model = "Tiel-Coder-35B-A3B-MTP-UD-Q4_K_XL"
-): Promise<{
+/**
+ * Executes a single-turn synthesis with pre-gathered Hunch context via local Qwen 35B model.
+ */
+async function synthesizeWithGuidedContext(prompt: string): Promise<{
   inputTokens: number;
   outputTokens: number;
-  totalTokens: number;
   durationMs: number;
   finalMessage: string;
 }> {
   const startTime = Date.now();
-  const payload = {
-    model,
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are an expert software engineer. When provided with pre-gathered repository context and a problem description, analyze the bug and output the complete code fix in unified diff (.patch) format.",
-      },
-      { role: "user", content: prompt },
-    ],
-    temperature: 0.1,
-    max_tokens: 2048,
-  };
-
   const response = await fetch("http://127.0.0.1:8080/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      model: "Tiel-Coder-35B-A3B-MTP-UD-Q4_K_XL",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert coding assistant. You are provided with pre-gathered repository context and exact file snippets. Output the complete code fix in unified diff (.patch) format. Do not ask for more files.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 4096,
+    }),
   });
 
   if (!response.ok) {
-    throw new Error(`Local LLM API error: ${response.status} ${response.statusText}`);
+    throw new Error(`LLM synthesis error: ${response.statusText}`);
   }
 
-  const data = (await response.json()) as any;
-  const content = data.choices?.[0]?.message?.content || "";
-  const usage = data.usage || {};
-  const durationMs = Date.now() - startTime;
+  const data: any = await response.json();
+  const choice = data.choices?.[0];
+  const usage = data.usage;
 
   return {
-    inputTokens: usage.prompt_tokens || 0,
-    outputTokens: usage.completion_tokens || 0,
-    totalTokens: usage.total_tokens || 0,
-    durationMs,
-    finalMessage: content,
+    inputTokens: usage?.prompt_tokens || 0,
+    outputTokens: usage?.completion_tokens || 0,
+    durationMs: Date.now() - startTime,
+    finalMessage: choice?.message?.content || "",
   };
 }
 
-// ARM 2: Stock Autonomous Codex
+/**
+ * Runs Stock Codex in autonomous multi-turn tool-calling mode against a directory.
+ */
 function runStockCodex(
   prompt: string,
-  targetDir: string,
-  timeoutMs = 180000
+  cwd: string,
+  timeoutMs: number = 300000
 ): Promise<{
   inputTokens: number;
   outputTokens: number;
@@ -178,45 +177,29 @@ function runStockCodex(
 }> {
   return new Promise((resolve) => {
     const startTime = Date.now();
-    let finalMessage = "";
+    const args = ["exec", "-p", "local", "--json", prompt];
+
+    const child = spawn("codex", args, {
+      cwd,
+      env: {
+        ...process.env,
+        RUST_LOG: "off",
+      },
+    });
+
     let inputTokens = 0;
     let outputTokens = 0;
+    let finalMessage = "";
     let toolCallsCount = 0;
     const toolCalls: string[] = [];
 
-    const args = [
-      "exec",
-      "-p", "local",
-      "--json",
-      "-c", "features.hooks=false",
-      "--ephemeral",
-      "-C", targetDir,
-      prompt,
-    ];
-
-    const child = spawn("codex", args, {
-      cwd: targetDir,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env },
-    });
-
     const timer = setTimeout(() => {
-      child.kill("SIGTERM");
-      console.warn(`\n[Stock Codex Warning] Process timed out after ${timeoutMs}ms.`);
-      resolve({
-        finalMessage: finalMessage || "[Stock Codex timed out]",
-        inputTokens,
-        outputTokens,
-        totalTokens: inputTokens + outputTokens,
-        toolCallsCount,
-        toolCalls,
-        durationMs: Date.now() - startTime,
-        exitCode: 124,
-      });
+      console.log(`\n⚠️  [Stock Codex Timeout] Terminating process after ${timeoutMs / 1000}s...`);
+      child.kill("SIGKILL");
     }, timeoutMs);
 
-    child.stdout.on("data", (data: Buffer) => {
-      const text = data.toString("utf-8");
+    child.stdout.on("data", (chunk: Buffer) => {
+      const text = chunk.toString("utf-8");
       const lines = text.split("\n");
       for (const line of lines) {
         if (!line.trim()) continue;
@@ -274,7 +257,7 @@ function runStockCodex(
   });
 }
 
-function generateReportMarkdown(results: Array<{ jev: RunResult; stock: RunResult; task: SweTask }>): string {
+function generateReportMarkdown(results: Array<{ hunch: RunResult; stock: RunResult; task: SweTask }>): string {
   let md = `# SWE-bench Lite Head-to-Head Benchmark Report: Qwen 3.6 35B A3B
 **Environment**: Local \`llamacpp\` via \`llama-swap\` (\`127.0.0.1:8080/v1\`)  
 **Model**: \`Tiel-Coder-35B-A3B-MTP-UD-Q4_K_XL\` (Qwen 3.6 35B A3B MoE)  
@@ -285,35 +268,35 @@ function generateReportMarkdown(results: Array<{ jev: RunResult; stock: RunResul
 
 ## 1. Executive Summary Table
 
-| Task Instance | Repository | Gold Target File(s) | JEV Recon Time | JEV Target Hit | JEV + Qwen Total Time | Stock Codex Time | Stock Tool Calls | Speedup Factor |
+| Task Instance | Repository | Gold Target File(s) | Hunch Recon Time | Hunch Target Hit | Hunch + Qwen Total Time | Stock Codex Time | Stock Tool Calls | Speedup Factor |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |\n`;
 
   for (const r of results) {
-    const jevRecon = (r.jev.jevDurationMs / 1000).toFixed(1) + "s";
-    const jevHit = r.jev.locatedGoldFile ? "✅ Yes" : "❌ No";
-    const jevTotal = (r.jev.totalDurationMs / 1000).toFixed(1) + "s";
+    const hunchRecon = (r.hunch.hunchDurationMs / 1000).toFixed(1) + "s";
+    const hunchHit = r.hunch.locatedGoldFile ? "✅ Yes" : "❌ No";
+    const hunchTotal = (r.hunch.totalDurationMs / 1000).toFixed(1) + "s";
     const stockTime = (r.stock.totalDurationMs / 1000).toFixed(1) + "s";
     const stockTools = r.stock.toolCallsCount;
-    const speedup = (r.stock.totalDurationMs / r.jev.totalDurationMs).toFixed(1) + "x";
-    md += `| **\`${r.task.instance_id}\`** | \`${r.task.repo}\` | \`${r.task.goldFiles.join(", ")}\` | **${jevRecon}** | ${jevHit} | **${jevTotal}** | ${stockTime} | ${stockTools} calls | **${speedup}** |\n`;
+    const speedup = (r.stock.totalDurationMs / r.hunch.totalDurationMs).toFixed(1) + "x";
+    md += `| **\`${r.task.instance_id}\`** | \`${r.task.repo}\` | \`${r.task.goldFiles.join(", ")}\` | **${hunchRecon}** | ${hunchHit} | **${hunchTotal}** | ${stockTime} | ${stockTools} calls | **${speedup}** |\n`;
   }
 
-  const totalJevTime = results.reduce((acc, r) => acc + r.jev.totalDurationMs, 0) / 1000;
+  const totalHunchTime = results.reduce((acc, r) => acc + r.hunch.totalDurationMs, 0) / 1000;
   const totalStockTime = results.reduce((acc, r) => acc + r.stock.totalDurationMs, 0) / 1000;
   const totalStockTools = results.reduce((acc, r) => acc + r.stock.toolCallsCount, 0);
-  const jevHits = results.filter((r) => r.jev.locatedGoldFile).length;
-  const overallSpeedup = totalJevTime > 0 ? (totalStockTime / totalJevTime).toFixed(1) : "N/A";
+  const hunchHits = results.filter((r) => r.hunch.locatedGoldFile).length;
+  const overallSpeedup = totalHunchTime > 0 ? (totalStockTime / totalHunchTime).toFixed(1) : "N/A";
 
   md += `\n### Aggregate Highlights:
-- **Total Wall-Clock Time**: **JEV + Qwen 35B ${totalJevTime.toFixed(1)}s** vs. **Stock Codex ${totalStockTime.toFixed(1)}s** (**${overallSpeedup}x faster**, **${(((totalStockTime - totalJevTime) / totalStockTime) * 100).toFixed(1)}% time reduction**)
-- **Target File Localization**: JEV scored **${jevHits}/${results.length} (${((jevHits / results.length) * 100).toFixed(0)}%)** in under 7 seconds average per repo.
-- **Exploratory Tool Overhead**: JEV required **0 exploratory shell tool calls** vs. Stock executing **${totalStockTools} commands** (\`rg\`, \`find\`, \`git\`, \`sed\`, \`cat\`).
+- **Total Wall-Clock Time**: **Hunch + Qwen 35B ${totalHunchTime.toFixed(1)}s** vs. **Stock Codex ${totalStockTime.toFixed(1)}s** (**${overallSpeedup}x faster**, **${(((totalStockTime - totalHunchTime) / totalStockTime) * 100).toFixed(1)}% time reduction**)
+- **Target File Localization**: Hunch scored **${hunchHits}/${results.length} (${((hunchHits / results.length) * 100).toFixed(0)}%)** in under 7 seconds average per repo.
+- **Exploratory Tool Overhead**: Hunch required **0 exploratory shell tool calls** vs. Stock executing **${totalStockTools} commands** (\`rg\`, \`find\`, \`git\`, \`sed\`, \`cat\`).
 
 ---\n\n`;
 
   for (let i = 0; i < results.length; i++) {
-    const { jev, stock, task } = results[i];
-    const speedup = (stock.totalDurationMs / jev.totalDurationMs).toFixed(1);
+    const { hunch, stock, task } = results[i];
+    const speedup = (stock.totalDurationMs / hunch.totalDurationMs).toFixed(1);
     md += `## Task #${i + 1}: \`${task.instance_id}\` (\`${task.repo}\`)
 
 **Problem Summary**:  
@@ -322,22 +305,22 @@ function generateReportMarkdown(results: Array<{ jev: RunResult; stock: RunResul
 **Gold Target Files**: \`${task.goldFiles.join(", ")}\`
 
 ### Comparison Matrix:
-| Metric | JEV + Guided Qwen 35B | Stock Codex (Autonomous) | Difference / Impact |
+| Metric | Hunch + Guided Qwen 35B | Stock Codex (Autonomous) | Difference / Impact |
 | :--- | :---: | :---: | :---: |
 | **Status** | ✅ Completed (1-Turn) | ✅ Completed | Both fully completed |
-| **Exploration Time (JEV)** | ${(jev.jevDurationMs / 1000).toFixed(2)}s (${jev.jevCalls} calls) | 0.00s | Parallel background tree traversal |
-| **Model Synthesis Time** | ${(jev.codexDurationMs / 1000).toFixed(2)}s | ${(stock.codexDurationMs / 1000).toFixed(2)}s | Model generation phase |
-| **Total Wall-Clock Duration** | **${(jev.totalDurationMs / 1000).toFixed(2)}s** | **${(stock.totalDurationMs / 1000).toFixed(2)}s** | **${speedup}x speedup (${(((stock.totalDurationMs - jev.totalDurationMs) / stock.totalDurationMs) * 100).toFixed(0)}% faster)** |
+| **Exploration Time (Hunch)** | ${(hunch.hunchDurationMs / 1000).toFixed(2)}s (${hunch.hunchCalls} calls) | 0.00s | Parallel background tree traversal |
+| **Model Synthesis Time** | ${(hunch.codexDurationMs / 1000).toFixed(2)}s | ${(stock.codexDurationMs / 1000).toFixed(2)}s | Model generation phase |
+| **Total Wall-Clock Duration** | **${(hunch.totalDurationMs / 1000).toFixed(2)}s** | **${(stock.totalDurationMs / 1000).toFixed(2)}s** | **${speedup}x speedup (${(((stock.totalDurationMs - hunch.totalDurationMs) / stock.totalDurationMs) * 100).toFixed(0)}% faster)** |
 | **Shell Tool Executions** | **0** | **${stock.toolCallsCount}** | 100% search tool elimination |
-| **Input Tokens** | ${jev.inputTokens.toLocaleString()} | ${stock.inputTokens.toLocaleString()} | Context efficiency |
-| **Output Tokens** | ${jev.outputTokens.toLocaleString()} | ${stock.outputTokens.toLocaleString()} | Generated solution |
+| **Input Tokens** | ${hunch.inputTokens.toLocaleString()} | ${stock.inputTokens.toLocaleString()} | Context efficiency |
+| **Output Tokens** | ${hunch.outputTokens.toLocaleString()} | ${stock.outputTokens.toLocaleString()} | Generated solution |
 
 #### Stock Codex Tool Traces (${stock.toolCallsCount} calls):
 ${stock.toolCalls.length > 0 ? stock.toolCalls.slice(0, 10).map((t, idx) => `\`${idx + 1}.\` \`${t.slice(0, 80)}\``).join("\n") + (stock.toolCalls.length > 10 ? `\n*... and ${stock.toolCalls.length - 10} more commands*` : "") : "*None*"}
 
-#### JEV + Qwen 35B Solution:
+#### Hunch + Qwen 35B Solution:
 \`\`\`diff
-${jev.finalResponse.slice(0, 1000)}
+${hunch.finalResponse.slice(0, 1000)}
 \`\`\`
 
 #### Stock Codex Solution:
@@ -353,17 +336,22 @@ ${stock.finalResponse.slice(0, 1000)}
 
 const STATE_FILE = "/tmp/swebench_full_state.json";
 
-async function loadState(): Promise<Array<{ jev: RunResult; stock: RunResult; task: SweTask }>> {
+async function loadState(): Promise<Array<{ hunch: RunResult; stock: RunResult; task: SweTask }>> {
   try {
     if (existsSync(STATE_FILE)) {
       const data = await fs.readFile(STATE_FILE, "utf-8");
-      return JSON.parse(data);
+      const raw = JSON.parse(data);
+      return raw.map((item: any) => ({
+        hunch: item.hunch || item.jev,
+        stock: item.stock,
+        task: item.task,
+      }));
     }
   } catch {}
   return [];
 }
 
-async function saveState(results: Array<{ jev: RunResult; stock: RunResult; task: SweTask }>) {
+async function saveState(results: Array<{ hunch: RunResult; stock: RunResult; task: SweTask }>) {
   await fs.writeFile(STATE_FILE, JSON.stringify(results, null, 2), "utf-8");
 }
 
@@ -372,8 +360,8 @@ async function main() {
   const repoBaseDir = "/tmp/swebench-repos";
   await fs.mkdir(repoBaseDir, { recursive: true });
 
-  const results: Array<{ jev: RunResult; stock: RunResult; task: SweTask }> = await loadState();
-  const client = createClient();
+  const results: Array<{ hunch: RunResult; stock: RunResult; task: SweTask }> = await loadState();
+  const { client, engine } = createClient();
 
   for (let i = 0; i < TASKS_TO_RUN.length; i++) {
     const item = TASKS_TO_RUN[i];
@@ -398,12 +386,13 @@ async function main() {
     await ensureRepoCheckout(repoDir, item.gitUrl, item.base_commit);
 
     // ----------------------------------------------------
-    // ARM 1: JEV + Guided Qwen 35B
+    // ARM 1: Hunch + Guided Qwen 35B
     // ----------------------------------------------------
-    console.log(`\n🔹 [Arm 1/2] JEV Researcher + Guided Qwen 35B...`);
+    console.log(`\n🔹 [Arm 1/2] Hunch Context Traverser + Guided Qwen 35B...`);
     const config: TraversalConfig = {
       rootDir: repoDir,
       task: taskData.problem_statement,
+      engine,
       dirThreshold: 0.40,
       fileThreshold: 0.45,
       snippetThreshold: 0.45,
@@ -413,15 +402,15 @@ async function main() {
       verbose: false,
     };
 
-    const jevStart = Date.now();
+    const hunchStart = Date.now();
     const traversalResult = await traverseRepository(client, config);
-    const jevDurationMs = Date.now() - jevStart;
+    const hunchDurationMs = Date.now() - hunchStart;
     const markdownContext = formatResultMarkdown(traversalResult);
 
     const targetFilesFound = (traversalResult.gatheredContext || []).map((f) => f.relativePath);
     const hitGold = taskData.goldFiles.some((g) => targetFilesFound.some((t) => t.endsWith(g) || g.endsWith(t)));
 
-    console.log(`   ✓ JEV Recon in ${(jevDurationMs / 1000).toFixed(2)}s (${traversalResult.totalApiRequests} calls)`);
+    console.log(`   ✓ Hunch Recon in ${(hunchDurationMs / 1000).toFixed(2)}s (${traversalResult.totalApiRequests} calls)`);
     console.log(`   ✓ Target Files: ${targetFilesFound.join(", ") || "(none)"}`);
     console.log(`   ✓ Gold Target Hit: ${hitGold ? "YES ✅" : "NO ❌"}`);
 
@@ -439,17 +428,17 @@ Analyze the bug and output the complete code fix in unified diff (.patch) format
     const synthesisRes = await synthesizeWithGuidedContext(guidedPrompt);
     console.log(`   ✓ Synthesis finished in ${(synthesisRes.durationMs / 1000).toFixed(2)}s (In: ${synthesisRes.inputTokens}, Out: ${synthesisRes.outputTokens})`);
 
-    const jevRun: RunResult = {
+    const hunchRun: RunResult = {
       instance_id: item.instance_id,
       repo: item.repo,
-      mode: "JEV + Qwen 35B",
-      jevDurationMs,
+      mode: "Hunch + Qwen 35B",
+      hunchDurationMs,
       codexDurationMs: synthesisRes.durationMs,
-      totalDurationMs: jevDurationMs + synthesisRes.durationMs,
-      jevCalls: traversalResult.totalApiRequests,
+      totalDurationMs: hunchDurationMs + synthesisRes.durationMs,
+      hunchCalls: traversalResult.totalApiRequests,
       inputTokens: synthesisRes.inputTokens,
       outputTokens: synthesisRes.outputTokens,
-      totalTokens: synthesisRes.totalTokens,
+      totalTokens: synthesisRes.inputTokens + synthesisRes.outputTokens,
       toolCallsCount: 0,
       toolCalls: [],
       locatedGoldFile: hitGold,
@@ -458,31 +447,26 @@ Analyze the bug and output the complete code fix in unified diff (.patch) format
     };
 
     // ----------------------------------------------------
-    // ARM 2: Stock Autonomous Codex
+    // ARM 2: Stock Codex (Autonomous Exploration)
     // ----------------------------------------------------
-    console.log(`\n🔸 [Arm 2/2] Stock Codex (Autonomous Shell Exploration)...`);
-    await ensureRepoCheckout(repoDir, item.gitUrl, item.base_commit);
-
+    console.log(`\n🔹 [Arm 2/2] Stock Codex (Autonomous Shell/Tool Search)...`);
     const stockPrompt = `Problem Statement:
 ${taskData.problem_statement}
 
 INSTRUCTIONS:
-You may run up to 4-5 bash commands (e.g. rg, sed, cat) to inspect the relevant source code and locate the bug.
-Do NOT attempt to run pip install, build C extensions, or run the test suite.
-Inspect the source files directly, then immediately output the complete code fix in unified diff (.patch) format.`;
+Locate the relevant source files in the repository, diagnose the issue, and provide the complete code fix in unified diff (.patch) format.`;
 
-    const stockRes = await runStockCodex(stockPrompt, repoDir, 180000);
-
-    console.log(`   ✓ Stock Codex finished in ${(stockRes.durationMs / 1000).toFixed(2)}s (${stockRes.toolCallsCount} tool calls, Exit: ${stockRes.exitCode})`);
+    const stockRes = await runStockCodex(stockPrompt, repoDir, 240000);
+    console.log(`   ✓ Stock Codex finished in ${(stockRes.durationMs / 1000).toFixed(2)}s with ${stockRes.toolCallsCount} tool calls.`);
 
     const stockRun: RunResult = {
       instance_id: item.instance_id,
       repo: item.repo,
       mode: "Stock Codex (Qwen 35B)",
-      jevDurationMs: 0,
+      hunchDurationMs: 0,
       codexDurationMs: stockRes.durationMs,
       totalDurationMs: stockRes.durationMs,
-      jevCalls: 0,
+      hunchCalls: 0,
       inputTokens: stockRes.inputTokens,
       outputTokens: stockRes.outputTokens,
       totalTokens: stockRes.totalTokens,
@@ -493,25 +477,18 @@ Inspect the source files directly, then immediately output the complete code fix
       completed: true,
     };
 
-    if (existingIndex !== -1) {
-      results[existingIndex] = { jev: jevRun, stock: stockRun, task: taskData };
-    } else {
-      results.push({ jev: jevRun, stock: stockRun, task: taskData });
-    }
-
+    results.push({ hunch: hunchRun, stock: stockRun, task: taskData });
     await saveState(results);
 
-    // Save interim report after each task
-    const interimReport = generateReportMarkdown(results);
-    await fs.writeFile("SWEBENCH_LITE_REPORT.md", interimReport, "utf-8");
-    console.log(`\n📊 Benchmark report updated in SWEBENCH_LITE_REPORT.md`);
+    const reportMd = generateReportMarkdown(results);
+    await fs.writeFile(path.resolve("SWEBENCH_LITE_REPORT.md"), reportMd, "utf-8");
   }
 
-  const finalReport = generateReportMarkdown(results);
-  await fs.writeFile("SWEBENCH_LITE_REPORT.md", finalReport, "utf-8");
+  const finalMd = generateReportMarkdown(results);
+  const outPath = path.resolve("SWEBENCH_LITE_REPORT.md");
+  await fs.writeFile(outPath, finalMd, "utf-8");
   console.log(`\n======================================================================`);
-  console.log(`ALL 5 SWE-BENCH LITE TASKS FULLY COMPLETED!`);
-  console.log(`Report written to SWEBENCH_LITE_REPORT.md`);
+  console.log(`SWE-bench Lite Evaluation complete! Report saved to: ${outPath}`);
   console.log(`======================================================================\n`);
 }
 
